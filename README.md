@@ -6,9 +6,9 @@ voltado à telemetria de Sim Racing com Logitech G29.
 ## Funcionamento previsto
 
 O F1 25 no PS5 enviará telemetria UDP pela rede local ao ESP32. O dispositivo
-exibirá dados na tela TFT e acionará cinco LEDs conforme o RPM. A marcha
-poderá aparecer na TFT ou em um display dedicado de sete segmentos, a definir.
-Um sensor LDR ajustará
+exibirá dados na tela TFT e acionará cinco LEDs conforme o RPM. O layout
+escolhido mostra a marcha no centro da TFT; o display dedicado de sete
+segmentos permanece opcional. Um sensor LDR ajustará
 automaticamente o brilho da TFT. Estatísticas de voltas e sessões serão
 enviadas a um backend Spring Boot para registro e consulta.
 
@@ -95,13 +95,16 @@ monitor serial confirmou recepção de telemetria no formato 2025.
 
 Veja [Teste da TFT](Docs/Teste_TFT.md) para as ligações e
 [Teste F1 25](Docs/Teste_F1_25.md) para configurar as redes e o jogo.
+O [catálogo da telemetria](Docs/Telemetria_F1_25.md) guarda os dados disponíveis
+para uso futuro. O [layout escolhido](Docs/Propostas_Dashboard/Dashboard_Corrida.md)
+registra os campos e cálculos previstos, ainda sem alterar o firmware de teste.
 `scripts/testar_parser.ps1` executa 26 verificações em tempo de compilação
 sem gravar no ESP32. O teste na rede da faculdade ainda está pendente.
 
 O backend, o LDR, os LEDs de RPM e o indicador de marchas ainda não foram
 integrados. O GPIO32 permanece em nível alto, com resistor em série no ramo
 do backlight e sem PWM. A marcha é registrada apenas no monitor serial
-do teste UDP; a escolha entre TFT e indicador dedicado permanece em avaliação.
+do teste UDP; o layout escolhido prevê a marcha centralizada na TFT.
 
 O código do projeto deverá usar nomes e comentários em português do Brasil.
 As orientações da disciplina e os prints das compras estão em `Docs/`.

@@ -1,0 +1,14 @@
+# Prompt da revisão do dashboard de corrida
+
+Ferramenta: imagegen integrada, modo de edição. Referência e alvo: `corrida-central.png`. Saída: `corrida-central-v2.png`. Fundo opaco preservado e dados simulados.
+
+```text
+Edit the provided image, which is the exact dashboard mockup chosen by the user. Make a revised version of THIS SAME design, preserving the straight-on 4:3 screen, solid black background, crisp condensed block numerals, red/white styling, top P04 and VOLTA 12/27 header, speed 286 km/h on the left, and the very large gear 7 EXACTLY CENTERED and still visually dominant. Do not add a device frame, perspective, logos, texture, glow, collage or extra panels. The entire interface must remain practical for a small 320x240 logical TFT screen. All sample values are fictional.
+Apply ALL these requested edits:
+1) Top RPM bar: progressive colored illuminated segments, green at the start, then yellow, then red near the shift point; any final unlit segments remain dark gray. Preserve the adjacent 'RPM 11.980' value. Make the green/yellow/red progression very clear.
+2) Replace the complete right-hand 'ERS 64%' block with TWO neatly stacked car gaps: heading 'FRENTE' and value '+0.842 s'; below that heading 'ATRAS' and value '+1.276 s'. Values white, headings white or subtle red. Do not show the old large ERS 64% block.
+3) Reorganize the horizontal band BELOW the central gear: a compact solid GREEN rectangle on the left reading 'DRS ATIVO' in black, and on its RIGHT two distinct stacked HORIZONTAL energy progress bars. First bar is CYAN with exact visible label 'VOLTA 72%' and 72 percent filled; it means remaining energy deployment allowance for the current lap. Second bar is YELLOW with exact visible label 'BATERIA 64%' and 64 percent filled; it means current stored battery charge. Use dark gray tracks. Both bars need visible percentages and clear labels, with enough spacing to distinguish them. Immediately BELOW the two bars display exactly 'MODO: ULTRAPASSAGEM' in a single readable line. The DRS and energy controls must form a tidy shared band, not overlap any text.
+4) Keep bottom area as THREE clean equal-width columns separated by thin lines: first label 'VOLTA' and value '1:23.418'; second label 'MINHA MELHOR' and value '1:22.906'; third label 'MELHOR PROVA' and value '1:21.884'. The third column REPLACES the old COMB fuel column completely. No COMB, fuel value or kg text anywhere.
+5) Keep a very small 'SIMULACAO' footer.
+Fit all requested content with aligned margins and no clipping. Shrink the center gear slightly only if necessary to make room for the energy band and bottom timing strip, while keeping it largest and centered. This is one single flat polished mockup, not a storyboard or comparison. Exact labels, numbers and semantic distinction of the two energy bars are critical.
+```

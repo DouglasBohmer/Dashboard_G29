@@ -7,11 +7,15 @@ A tipografia e os espaçamentos serão ajustados na implementação física.
 
 ## Corrida central
 
-![Marcha central e DRS](corrida-central.png)
+Proposta escolhida. A revisão abaixo incorpora as mudanças solicitadas:
 
-Marcha grande no centro, barra verde de DRS diretamente abaixo, velocidade
-à esquerda e ERS à direita. RPM, posição, volta, tempo e combustível
-completam a composição. É a proposta recomendada para dirigir.
+![Marcha central, intervalos e duas barras de energia](corrida-central-v2.png)
+
+Marcha grande no centro, velocidade à esquerda e intervalos à direita.
+RPM com cores progressivas; DRS acompanhado de duas barras de energia e
+modo do ERS. Rodapé com volta atual, melhor pessoal e melhor da prova.
+Veja [distribuição e significado dos campos](Dashboard_Corrida.md).
+O [primeiro estudo](corrida-central.png) foi preservado.
 
 Essa opção atende ao pedido de mostrar a marcha na própria TFT. O uso do
 display separado de sete segmentos passou a ser opcional e ainda será decidido.
@@ -49,6 +53,7 @@ de RPM. Os novos campos dos conceitos exigem ampliar a leitura dos pacotes:
 de disponibilidade vem de `m_drsAllowed`; são estados diferentes. A barra
 verde representa um estado, não uma porcentagem de abertura.
 
+A lista geral de dados ficou guardada em [Telemetria F1 25](../Telemetria_F1_25.md).
 A energia ERS chega em joules: a exibição em porcentagem precisa de uma
 conversão adequada ao carro/regulamento. Combustível deve ter unidade clara
 e escala coerente. Temperatura dos pneus, desgaste e dano são medidas distintas.
