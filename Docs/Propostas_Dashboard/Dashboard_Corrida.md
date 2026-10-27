@@ -1,8 +1,9 @@
 # Dashboard de corrida escolhido
 
 Layout escolhido: primeira proposta, com marcha centralizada na TFT.
-Revisão de 27/10/2026, ainda como estudo visual. O firmware de teste permanece
-com a tela anterior; esta etapa altera a imagem e a especificação do layout.
+Revisão de 27/10/2026. O layout agora está implementado no firmware, com
+adaptação das fontes e medidas à TFT de 320×240. Veja
+[Dashboard no ESP32](../Dashboard_Firmware.md) para o funcionamento atual.
 
 ![Dashboard de corrida revisado](corrida-central-v2.png)
 
@@ -28,8 +29,8 @@ física de 320×240. O original continua em [corrida-central.png](corrida-centra
 **VOLTA:** saldo do limite de energia que ainda pode ser aplicado na volta.
 É uma medida distinta da carga da bateria. O protocolo informa a energia
 aplicada nesta volta em joules, por `m_ersDeployedThisLap`; o percentual
-restante será calculado a partir desse valor e do limite correspondente ao
-carro/regulamento, ainda a validar contra o HUD do F1 25.
+restante é calculado a partir desse valor e do limite de referência do perfil
+F1 2025, ainda a validar contra o HUD do jogo.
 
 **BATERIA:** carga armazenada no momento, baseada em `m_ersStoreEnergy`.
 O percentual depende da capacidade de referência adequada ao carro.

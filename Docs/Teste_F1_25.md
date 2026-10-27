@@ -137,74 +137,60 @@ Entre em uma sessão e conduza o carro na pista. A troca entre PS5 por cabo
 e PS5 por Wi-Fi não exige recompilar; basta garantir que ele alcance o IP
 atual do ESP32 e manter as opções UDP.
 
-## Conferir o resultado
+## Conferir o dashboard
 
-- `AGUARDANDO F1 25`: Wi-Fi e receptor UDP prontos, sem telemetria recente.
-- `TELEMETRIA ATIVA`: velocidade e RPM reais do carro identificado por
-  `m_playerCarIndex`, com intervalo alvo de 33 ms na atualização dos números.
-- `SINAL DE F1 AUSENTE`: não chegaram novos dados do carro por 3 segundos;
-  os valores são substituídos por `--` para não apresentar informação antiga.
-- `SELECIONE UDP 2025`: chegaram pacotes com outro formato.
-- `VERSAO UDP INCOMPATIVEL`: o pacote de telemetria não usa a versão 1 esperada.
+O ambiente padrão agora mostra o dashboard completo. A marcha fica no centro
+da TFT, acompanhada por velocidade, RPM colorido, DRS, intervalos, energia e
+tempos. Veja [Dashboard no ESP32](Dashboard_Firmware.md) para as escalas e
+o significado de cada campo.
 
-`UDP` conta todos os datagramas; `telemetria` conta apenas atualizações do
-carro aceitas. O jogo também envia outros tipos de pacote, portanto os dois
-contadores normalmente diferem. Tamanhos inválidos, índices fora de 0–21,
-marchas inválidas, versões incompatíveis e pacotes duplicados/atrasados são
-descartados. As contagens de descarte aparecem no monitor serial.
+- `F1 ATIVO`: chegaram dados recentes do carro do jogador.
+- `AGUARDANDO F1`: Wi-Fi e UDP prontos; sem dados recentes. Campos vencidos
+  ficam com `--`, e o IP permanece no rodapé.
+- `SELECIONE UDP 2025 NO F1`: chegaram pacotes com outro formato.
+- `VERSAO UDP INCOMPATIVEL`: um pacote utilizado tem versão não suportada.
+- DRS verde: ativado. DRS pronto: permitido, ainda sem ativação.
+- Tempo atual vermelho: volta marcada como inválida.
+- `+1V` nos intervalos: diferença de volta, em vez de segundos.
+- Melhor pessoal/prova: dependem da chegada dos históricos válidos.
 
-A marcha é lida e registrada somente no monitor serial neste teste. A TFT
-continua reservada a velocidade, RPM e informações de conexão; a exibição
-de marcha ficará no display dedicado quando ele estiver disponível.
+A barra de RPM usa a indicação de troca fornecida pelo jogo e pode ficar
+apagada abaixo dessa faixa. A barra VOLTA é uma estimativa do saldo de
+aplicação de energia, com perfil F1 moderno 2025; confira com o HUD antes de
+usar outros carros ou regulamentos.
 
-Comandos seriais: `i` mostra informações atuais; `r` reinicia a tentativa de
-conexão às redes cadastradas. O comando `r` não reinicia o ESP32.
+Os contadores ficam no monitor serial. `UDP` conta todos os datagramas;
+`atualizados` conta pacotes utilizados. Há contagem por tipo: sessão, voltas,
+carro, energia e histórico. Quadros duplicados/antigos e pacotes inválidos
+são registrados separadamente. `i` mostra informações; `r` limpa os dados e
+reinicia a conexão às redes cadastradas.
 
-Registre, ao testar cada ligação do PS5: local, cabo/Wi-Fi, IP do ESP32,
-foto da TFT, trecho do monitor serial e se os valores acompanham o jogo.
-O usuário confirmou funcionamento no teste real com F1 25 no PS5. O monitor
-serial também confirmou recepção do formato 2025, velocidade/RPM e cerca de
-20 atualizações de telemetria por segundo na configuração usada inicialmente.
-O teste na rede da faculdade ainda precisa ser realizado.
+## Fluidez e verificações
 
-## Fluidez e piscadas nos números
+Os campos principais têm intervalo alvo de 33 ms e os auxiliares, 100 ms.
+O texto é preparado na RAM e apenas as áreas alteradas são transmitidas.
+Valores iguais não são redesenhados; mudanças de cor também são consideradas.
+SPI continua em 10 MHz. A inspeção visual da TFT deve confirmar legibilidade
+e ausência das piscadas de apagamento.
 
-A versão inicial apagava cada campo diretamente na TFT antes de redesenhar
-o texto. Esse intervalo com fundo preto causava piscadas nos valores.
-Agora, dois buffers RGB565 reutilizáveis preparam o fundo e o texto na RAM,
-e cada campo alterado é copiado pronto para a TFT. Os buffers ocupam 21.680
-bytes de RAM e preservam a limpeza de dígitos quando o texto encurta.
+Em 27/10/2026, passaram as 26 verificações estáticas de
+`scripts/testar_parser.ps1` e 58 verificações executadas no ESP32 pelo
+ambiente separado `testes_dashboard`. Após o teste, foi gravado novamente o
+ambiente `telemetria_f1`.
 
-Velocidade e RPM são avaliados a cada 33 ms, com alvo de aproximadamente
-30 atualizações por segundo, limitado pelo tempo de desenho e pelos dados
-recebidos. Os demais campos são avaliados a cada 500 ms. Valores iguais
-aos anteriores não são redesenhados. A comunicação SPI permanece em 10 MHz.
+Um ensaio adicional por UDP/Wi-Fi com valores simulados a 60 Hz resultou em
+1.459 pacotes aceitos, sem rejeições ou quadros fora de ordem nesse período.
+Os relatórios durante o movimento mostraram picos de desenho de 26,2 a
+31,7 ms; a primeira atualização chegou a 35,2 ms e a limpeza/reconexão, a
+46,4 ms. O ensaio não mede ausência de perdas UDP na rede nem garante esse
+desempenho em todas as situações. Os dados simulados foram limpos ao final.
 
-No jogo, selecione 60 Hz para fornecer dados com maior frequência ao ESP32.
-Aumentar somente a taxa do jogo não acelerava a versão anterior, cuja tela
-era atualizada a cada 200 ms (5 vezes por segundo). No monitor serial,
-`maior desenho` mostra o maior tempo gasto pela atualização da TFT desde
-o último relatório; compare com o alvo de 33.000 us.
-
-Após compilar e gravar essa versão pela COM3, uma leitura serial de 12
-segundos confirmou Wi-Fi conectado, telemetria real chegando a cerca de
-20 Hz e nenhuma rejeição de pacotes pelo firmware nesse período. Os picos
-de desenho registrados ficaram entre 15,4 e 24,1 ms, abaixo do alvo de
-33 ms, incluindo mudanças de velocidade e RPM. Essa amostra não comprova
-ausência de perdas UDP na rede nem a taxa de desenho em todas as situações.
-
-Ao testar, observe aceleração, frenagem e troca de marchas, além da passagem
-de três para dois dígitos na velocidade. Confira se os valores anteriores
-desaparecem sem a piscada preta do apagamento. A melhora visual deve ser
-confirmada olhando a TFT física; o log serial não mede esse efeito.
-
-## Verificação do parser
-
-`scripts/testar_parser.ps1` compila 26 verificações estáticas contra o parser
-usado no firmware: seleção do primeiro e último carro, velocidade/RPM,
-ré/neutro, leitura little-endian, pacotes truncados, índice inválido,
-formato/versão e ordenação de quadros com retorno do contador de 32 bits.
-Não grava nada no ESP32.
+Após limpar a simulação, o usuário confirmou o carro na pista e chegaram
+pacotes reais do PS5 de todos os tipos utilizados. Velocidade, RPM e marcha
+variaram; energia, modo e históricos também foram recebidos. Os relatórios
+da amostra mostraram picos de desenho de 8,6 a 12,1 ms, sem rejeições ou
+quadros fora de ordem. A comparação visual de todos os novos campos com o
+HUD e o teste na rede da faculdade ainda devem ser realizados.
 
 ## Fontes
 

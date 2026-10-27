@@ -28,6 +28,7 @@ struct DadosCarro {
   uint8_t indiceCarro = 0;
   uint64_t sessao = 0;
   uint32_t quadro = 0;
+  bool drsAtivo = false;
 };
 
 struct PacoteInterpretado {
@@ -83,13 +84,14 @@ constexpr PacoteInterpretado interpretar(const uint8_t *pacote, size_t tamanho) 
 
   const uint8_t *carro = pacote + TAMANHO_CABECALHO + indiceCarro * TAMANHO_CARRO;
   const int16_t marcha = carro[15] < 128 ? carro[15] : carro[15] - 256;
-  if (marcha < -1 || marcha > 8 || carro[19] > 100) {
+  if (marcha < -1 || marcha > 8 || carro[19] > 100 || carro[18] > 1) {
     return {Resultado::ValorInvalido, {}};
   }
 
   return {Resultado::Telemetria,
           {ler16(carro), ler16(carro + 16), static_cast<int8_t>(marcha),
-           carro[19], indiceCarro, ler64(pacote + 7), ler32(pacote + 23)}};
+           carro[19], indiceCarro, ler64(pacote + 7), ler32(pacote + 23),
+           carro[18] == 1}};
 }
 
 constexpr bool quadroMaisRecente(uint32_t novo, uint32_t anterior) {

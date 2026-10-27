@@ -14,7 +14,8 @@ próximas funções do projeto. Considera o formato UDP 2025 selecionado no jogo
 | Sessão | Pista, clima, temperaturas, bandeiras, safety car e limite dos boxes. |
 
 A lista descreve dados do protocolo, não funções já implementadas. O firmware
-atual interpreta velocidade, RPM, marcha e percentual das luzes de RPM.
+atual interpreta os campos do [dashboard de corrida](Dashboard_Firmware.md),
+incluindo marcha, DRS, intervalos, energia e tempos de volta.
 Alguns campos variam conforme modo de jogo, carro e permissões de telemetria.
 
 Há ainda movimento, participantes, acerto do carro, eventos, histórico de

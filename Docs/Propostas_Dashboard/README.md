@@ -38,8 +38,8 @@ página de consulta, mantendo uma página principal mais simples para dirigir.
 
 ## Dados e implementação
 
-O firmware atual interpreta velocidade, RPM, marcha e percentual das luzes
-de RPM. Os novos campos dos conceitos exigem ampliar a leitura dos pacotes:
+O dashboard escolhido está implementado, conforme
+[Dashboard no ESP32](../Dashboard_Firmware.md). A leitura usa estes pacotes:
 
 | Pacote | Aplicação nos conceitos |
 | --- | --- |
@@ -62,8 +62,8 @@ Para alertas, pode-se priorizar bandeiras, limite de velocidade nos boxes,
 volta inválida e ausência de telemetria. Gráficos de evolução e análises de
 sessão podem ficar no futuro backend, aproveitando a tela maior do navegador.
 
-Os prompts usados estão em [Prompts.md](Prompts.md). Este estudo não altera
-o firmware que já funciona no ESP32.
+Os prompts usados estão em [Prompts.md](Prompts.md). As imagens são estudos
+visuais; a implementação física usa fontes e espaçamentos adaptados à TFT.
 
 ## Referências
 

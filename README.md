@@ -66,17 +66,17 @@ resistor de 220 Ω ou 300 Ω em série para limitar a corrente nesse caminho.
 
 ## Estado do software
 
-Há dois ambientes PlatformIO, configurados para ESP32 e porta COM3:
+Há três ambientes PlatformIO, configurados para ESP32 e porta COM3:
 
-- `telemetria_f1` (padrão): `src/main.cpp` conecta às redes Wi-Fi cadastradas,
-  recebe UDP F1 25 na porta 20777 e mostra velocidade, RPM e estado da conexão.
-  O parser em `include/telemetria_f1.h` verifica formato, versão, tamanho,
-  índice do jogador e valores; o receptor ignora quadros duplicados/atrasados
-  e deixa de exibir valores antigos após 3 segundos sem atualização.
-  Os números usam buffers de desenho na RAM para evitar o apagamento visível,
-  com intervalo alvo de 33 ms; informações de diagnóstico usam 500 ms.
+- `telemetria_f1` (padrão): implementa o dashboard de marcha central, com
+  velocidade, RPM colorido, DRS, intervalos, energia, modo do ERS e tempos.
+  Recebe UDP 2025 na porta 20777; valida os pacotes e descarta dados antigos.
+  Um buffer de texto e atualizações das regiões alteradas evitam o apagamento
+  visível. Intervalos alvo: 33 ms para campos principais e 100 ms para auxiliares.
 - `diagnostico_tft`: `src/diagnostico_tft.cpp` executa o teste de cores,
   orientação, texto e leitura do controlador, já validado manualmente.
+- `testes_dashboard`: executa 58 verificações no ESP32, em aplicação separada.
+  Depois do teste, grave `telemetria_f1` para usar o dashboard.
 
 O mesmo receptor atende PS5 por cabo ou por Wi-Fi na rede local. O ESP32
 sempre usa Wi-Fi de 2,4 GHz. Casa e faculdade podem ser cadastradas em
@@ -96,15 +96,15 @@ monitor serial confirmou recepção de telemetria no formato 2025.
 Veja [Teste da TFT](Docs/Teste_TFT.md) para as ligações e
 [Teste F1 25](Docs/Teste_F1_25.md) para configurar as redes e o jogo.
 O [catálogo da telemetria](Docs/Telemetria_F1_25.md) guarda os dados disponíveis
-para uso futuro. O [layout escolhido](Docs/Propostas_Dashboard/Dashboard_Corrida.md)
-registra os campos e cálculos previstos, ainda sem alterar o firmware de teste.
+para uso futuro. Veja [Dashboard no ESP32](Docs/Dashboard_Firmware.md) para os
+campos, cálculos de energia, desenho e verificações; o
+[layout escolhido](Docs/Propostas_Dashboard/Dashboard_Corrida.md) preserva o estudo visual.
 `scripts/testar_parser.ps1` executa 26 verificações em tempo de compilação
 sem gravar no ESP32. O teste na rede da faculdade ainda está pendente.
 
 O backend, o LDR, os LEDs de RPM e o indicador de marchas ainda não foram
 integrados. O GPIO32 permanece em nível alto, com resistor em série no ramo
-do backlight e sem PWM. A marcha é registrada apenas no monitor serial
-do teste UDP; o layout escolhido prevê a marcha centralizada na TFT.
+do backlight e sem PWM. A marcha aparece centralizada na TFT.
 
 O código do projeto deverá usar nomes e comentários em português do Brasil.
 As orientações da disciplina e os prints das compras estão em `Docs/`.
