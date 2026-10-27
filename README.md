@@ -6,8 +6,9 @@ voltado à telemetria de Sim Racing com Logitech G29.
 ## Funcionamento previsto
 
 O F1 25 no PS5 enviará telemetria UDP pela rede local ao ESP32. O dispositivo
-exibirá dados na tela TFT, indicará as marchas em um display dedicado de sete
-segmentos e acionará cinco LEDs conforme o RPM. Um sensor LDR ajustará
+exibirá dados na tela TFT e acionará cinco LEDs conforme o RPM. A marcha
+poderá aparecer na TFT ou em um display dedicado de sete segmentos, a definir.
+Um sensor LDR ajustará
 automaticamente o brilho da TFT. Estatísticas de voltas e sessões serão
 enviadas a um backend Spring Boot para registro e consulta.
 
@@ -19,14 +20,16 @@ O formato UDP inicial previsto é 2025, a ser selecionado também no jogo.
 | --- | --- |
 | ESP32 WROOM, 30 pinos, USB-C | Comunicação Wi-Fi, processamento e controle das saídas. |
 | TFT SPI de 3,2 polegadas | KMRTM32032-SPI V2.0, sem touch. Ensaio manual confirmou cores, rotação, imagem 320×240 e ID compatível com ILI9341 (`41 00 93 41`). Tipo de painel e circuito interno do backlight ainda não confirmados. |
-| Display de sete segmentos, um dígito | Indicador exclusivo de marchas, proveniente do Kit Iniciante V8 da RoboCore. A referência do fabricante indica vermelho e cátodo comum; confirmar modelo e pinagem na peça antes de montar. |
+| Display de sete segmentos, um dígito | Opção para indicar marchas, proveniente do Kit Iniciante V8 da RoboCore. Uso ainda em avaliação. A referência do fabricante indica vermelho e cátodo comum; confirmar modelo e pinagem na peça antes de montar. |
 | Cinco LEDs discretos | Barra de RPM: dois verdes, um amarelo e dois vermelhos. |
 | Módulo LDR com saída analógica | Medição de luminosidade para ajuste do brilho da TFT. |
 | Resistores | Foto de uma unidade compatível com 220 Ω ±5%. A caixa do kit também lista 15 resistores de 300 Ω e cinco de 10 kΩ. Quantidades restantes e valores medidos ainda não conferidos. |
 
 ## Indicador dedicado de marchas
 
-- As marchas serão exibidas exclusivamente no display de sete segmentos.
+- O uso do display dedicado é opcional e ainda será decidido. Há uma proposta
+  com marcha centralizada na TFT e uma barra verde de DRS logo abaixo em
+  [Propostas do dashboard](Docs/Propostas_Dashboard/README.md).
 - O comportamento previsto é mostrar `1` a `8`, `n` para neutro e `r` para ré,
   com letras aproximadas pelos segmentos disponíveis.
 - O ponto decimal não é necessário para essa função.
@@ -98,7 +101,7 @@ sem gravar no ESP32. O teste na rede da faculdade ainda está pendente.
 O backend, o LDR, os LEDs de RPM e o indicador de marchas ainda não foram
 integrados. O GPIO32 permanece em nível alto, com resistor em série no ramo
 do backlight e sem PWM. A marcha é registrada apenas no monitor serial
-do teste UDP; sua exibição ficará no indicador dedicado.
+do teste UDP; a escolha entre TFT e indicador dedicado permanece em avaliação.
 
 O código do projeto deverá usar nomes e comentários em português do Brasil.
 As orientações da disciplina e os prints das compras estão em `Docs/`.
