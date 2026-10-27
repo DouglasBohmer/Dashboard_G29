@@ -19,10 +19,10 @@ O formato UDP inicial previsto é 2025, a ser selecionado também no jogo.
 | --- | --- |
 | ESP32 WROOM, 30 pinos, USB-C | Comunicação Wi-Fi, processamento e controle das saídas. |
 | TFT SPI de 3,2 polegadas | Velocidade e demais informações da sessão. Placa identificada na foto como KMRTM32032-SPI, 240×320, V2.0. Anúncio informa ausência de touch. Controlador, tipo de painel e circuito do backlight pendentes de confirmação. |
-| Display de sete segmentos, um dígito | Indicador exclusivo de marchas. Modelo, pinagem, cor e tipo de comum ainda precisam ser identificados. |
+| Display de sete segmentos, um dígito | Indicador exclusivo de marchas, proveniente do Kit Iniciante V8 da RoboCore. A referência do fabricante indica vermelho e cátodo comum; confirmar modelo e pinagem na peça antes de montar. |
 | Cinco LEDs discretos | Barra de RPM: dois verdes, um amarelo e dois vermelhos. |
 | Módulo LDR com saída analógica | Medição de luminosidade para ajuste do brilho da TFT. |
-| Resistores | Já adquiridos; valores e quantidades disponíveis ainda não conferidos. |
+| Resistores | Foto de uma unidade compatível com 220 Ω ±5%. A caixa do kit também lista 15 resistores de 300 Ω e cinco de 10 kΩ. Quantidades restantes e valores medidos ainda não conferidos. |
 
 ## Indicador dedicado de marchas
 
@@ -45,8 +45,9 @@ Nenhuma ligação física havia sido feita na última atualização.
 
 A pinagem apresentada no contexto inicial é provisória. Ela precisa ser
 revisada considerando o novo display e os pinos de inicialização do ESP32.
-A ligação do pino LED da TFT ao GPIO32 depende da confirmação do circuito
-de acionamento existente na placa.
+A ligação definitiva do pino LED da TFT ao GPIO32 depende da confirmação
+do circuito de acionamento existente na placa. No diagnóstico, usa-se um
+resistor de 220 Ω ou 300 Ω em série para limitar a corrente nesse caminho.
 
 ## Confirmações pendentes de hardware
 
@@ -59,14 +60,21 @@ de acionamento existente na placa.
    continuidade devem ocorrer com a placa desligada.
 3. Identificar o código do display de sete segmentos e confirmar se é de
    ânodo comum ou cátodo comum, além da correspondência entre pinos e segmentos.
-4. Conferir os valores e as quantidades dos resistores adquiridos.
+4. Medir os resistores e conferir as quantidades restantes; a leitura por
+   foto de uma unidade indica 220 Ω e a caixa do kit lista unidades de 300 Ω.
 5. Validar alimentação e pinagem antes da montagem definitiva.
 
 ## Estado do software
 
-O firmware e o backend ainda não foram implementados. O arquivo
-`src/main.cpp` contém apenas o exemplo inicial do PlatformIO e
-`platformio.ini` ainda está configurado para Arduino Uno Mini.
+Existe um firmware inicial de diagnóstico da TFT em `src/main.cpp`, com
+teste de cores, orientação, texto e tentativa de leitura do controlador.
+O ambiente `diagnostico_tft` está configurado para ESP32 e porta COM3.
+As ligações específicas e as instruções estão em [Teste da TFT](Docs/Teste_TFT.md).
+
+O firmware de telemetria e o backend ainda não foram implementados. O teste
+não aciona os demais periféricos. O GPIO32 permanece em nível alto, com
+resistor em série no ramo do backlight e sem PWM. A validação física
+da imagem e do controlador depende do ensaio com a tela conectada.
 
 O código do projeto deverá usar nomes e comentários em português do Brasil.
 As orientações da disciplina e os prints das compras estão em `Docs/`.
