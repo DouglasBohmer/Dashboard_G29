@@ -18,12 +18,15 @@ namespace Configuracao {
 constexpr uint16_t PORTA_UDP = 20777;
 constexpr uint32_t TEMPO_TENTATIVA_WIFI = 15000;
 constexpr uint32_t TEMPO_SEM_TELEMETRIA = 3000;
-constexpr uint32_t INTERVALO_TELA = 200;
+constexpr uint32_t INTERVALO_TELA = 33;
+constexpr uint32_t INTERVALO_INFORMACOES = 500;
 constexpr size_t TAMANHO_BUFFER = 1536;
 }  // namespace Configuracao
 
 Adafruit_ILI9341 tela(Configuracao::PINO_CS, Configuracao::PINO_DC,
                       Configuracao::PINO_RESET);
+GFXcanvas16 imagemNumeros(140, 34);
+GFXcanvas16 imagemInformacoes(304, 20);
 WiFiUDP receptor;
 F1::DadosCarro dadosCarro;
 uint8_t pacoteRecebido[Configuracao::TAMANHO_BUFFER];
@@ -41,6 +44,9 @@ uint32_t ultimaTentativaUdp = 0;
 uint32_t ultimaTelemetria = 0;
 uint32_t ultimoErro = 0;
 uint32_t ultimaTela = 0;
+uint32_t ultimasInformacoes = 0;
+bool informacoesDesenhadas = false;
+uint32_t maiorTempoDesenhoUs = 0;
 uint32_t ultimoRelatorio = 0;
 uint32_t pacotesRecebidos = 0;
 uint32_t pacotesTelemetria = 0;
@@ -205,12 +211,21 @@ void escreverCampo(uint8_t indice, int16_t x, int16_t y, int16_t largura,
   if (camposAnteriores[indice] == texto) {
     return;
   }
+  GFXcanvas16 &imagem = largura == imagemNumeros.width() ? imagemNumeros
+                                                       : imagemInformacoes;
+  if (!imagem.getBuffer() || largura != imagem.width() ||
+      altura > imagem.height()) {
+    return;
+  }
+  // Limpar e desenhar em RAM; a TFT recebe fundo e texto juntos.
+  imagem.fillScreen(ILI9341_BLACK);
+  imagem.setTextSize(tamanho);
+  imagem.setTextColor(cor, ILI9341_BLACK);
+  imagem.setTextWrap(false);
+  imagem.setCursor(0, 0);
+  imagem.print(texto);
+  tela.drawRGBBitmap(x, y, imagem.getBuffer(), largura, altura);
   camposAnteriores[indice] = texto;
-  tela.fillRect(x, y, largura, altura, ILI9341_BLACK);
-  tela.setTextSize(tamanho);
-  tela.setTextColor(cor, ILI9341_BLACK);
-  tela.setCursor(x, y);
-  tela.print(texto);
 }
 
 void prepararTela() {
@@ -238,48 +253,59 @@ void atualizarTela(uint32_t agora) {
     return;
   }
   ultimaTela = agora;
+  const uint32_t inicioDesenhoUs = micros();
   const bool conectado = WiFi.status() == WL_CONNECTED;
   const bool dadosAtuais = telemetriaRecente(agora);
-  String estado;
-  uint16_t corEstado = ILI9341_YELLOW;
-  if (!haRedesConfiguradas) {
-    estado = "CONFIGURE O WI-FI";
-  } else if (!conectado) {
-    estado = "CONECTANDO WI-FI";
-  } else if (!udpAtivo) {
-    estado = "ABRINDO PORTA UDP";
-  } else if (dadosAtuais) {
-    estado = "TELEMETRIA ATIVA";
-    corEstado = ILI9341_GREEN;
-  } else if (agora - ultimoErro < 3000 &&
-             erroProtocolo == F1::Resultado::FormatoIncompativel) {
-    estado = "SELECIONE UDP 2025";
-    corEstado = ILI9341_RED;
-  } else if (agora - ultimoErro < 3000 &&
-             erroProtocolo == F1::Resultado::VersaoIncompativel) {
-    estado = "VERSAO UDP INCOMPATIVEL";
-    corEstado = ILI9341_RED;
-  } else {
-    estado = temTelemetria ? "SINAL DE F1 AUSENTE" : "AGUARDANDO F1 25";
-  }
-  escreverCampo(0, 8, 38, 304, 20, 2, corEstado, estado);
-  escreverCampo(1, 8, 65, 304, 20, 2, ILI9341_WHITE,
-                 conectado ? "IP: " + WiFi.localIP().toString() : "IP: --");
-  escreverCampo(2, 8, 93, 304, 10, 1, ILI9341_WHITE,
-                 "WiFi: " + (conectado ? WiFi.SSID() : String(nomeRedeEmTeste)));
-  escreverCampo(3, 8, 107, 304, 10, 1, ILI9341_WHITE,
-                 String("UDP 20777 | formato recebido: ") + formatoRecebido);
   escreverCampo(4, 12, 146, 140, 34, 4, ILI9341_WHITE,
                  dadosAtuais ? String(dadosCarro.velocidadeKmh) : "--");
   escreverCampo(5, 174, 146, 140, 34, 4, ILI9341_WHITE,
                  dadosAtuais ? String(dadosCarro.rpm) : "--");
-  escreverCampo(6, 8, 201, 304, 10, 1, ILI9341_WHITE,
-                 "UDP: " + String(pacotesRecebidos) +
-                     " | telemetria: " + String(pacotesTelemetria));
-  escreverCampo(7, 8, 222, 304, 10, 1, ILI9341_YELLOW,
-                 haRedesConfiguradas
-                     ? "PS5 cabo ou WiFi: mesma rede local"
-                     : "Edite configuracao_wifi.local.h");
+
+  if (!informacoesDesenhadas ||
+      agora - ultimasInformacoes >= Configuracao::INTERVALO_INFORMACOES) {
+    informacoesDesenhadas = true;
+    ultimasInformacoes = agora;
+    String estado;
+    uint16_t corEstado = ILI9341_YELLOW;
+    if (!haRedesConfiguradas) {
+      estado = "CONFIGURE O WI-FI";
+    } else if (!conectado) {
+      estado = "CONECTANDO WI-FI";
+    } else if (!udpAtivo) {
+      estado = "ABRINDO PORTA UDP";
+    } else if (dadosAtuais) {
+      estado = "TELEMETRIA ATIVA";
+      corEstado = ILI9341_GREEN;
+    } else if (agora - ultimoErro < 3000 &&
+               erroProtocolo == F1::Resultado::FormatoIncompativel) {
+      estado = "SELECIONE UDP 2025";
+      corEstado = ILI9341_RED;
+    } else if (agora - ultimoErro < 3000 &&
+               erroProtocolo == F1::Resultado::VersaoIncompativel) {
+      estado = "VERSAO UDP INCOMPATIVEL";
+      corEstado = ILI9341_RED;
+    } else {
+      estado = temTelemetria ? "SINAL DE F1 AUSENTE" : "AGUARDANDO F1 25";
+    }
+    escreverCampo(0, 8, 38, 304, 20, 2, corEstado, estado);
+    escreverCampo(1, 8, 65, 304, 20, 2, ILI9341_WHITE,
+                   conectado ? "IP: " + WiFi.localIP().toString() : "IP: --");
+    escreverCampo(2, 8, 93, 304, 10, 1, ILI9341_WHITE,
+                   "WiFi: " + (conectado ? WiFi.SSID() : String(nomeRedeEmTeste)));
+    escreverCampo(3, 8, 107, 304, 10, 1, ILI9341_WHITE,
+                   String("UDP 20777 | formato recebido: ") + formatoRecebido);
+    escreverCampo(6, 8, 201, 304, 10, 1, ILI9341_WHITE,
+                   "UDP: " + String(pacotesRecebidos) +
+                       " | telemetria: " + String(pacotesTelemetria));
+    escreverCampo(7, 8, 222, 304, 10, 1, ILI9341_YELLOW,
+                   haRedesConfiguradas
+                       ? "PS5 cabo ou WiFi: mesma rede local"
+                       : "Edite configuracao_wifi.local.h");
+  }
+  const uint32_t tempoDesenhoUs = micros() - inicioDesenhoUs;
+  if (tempoDesenhoUs > maiorTempoDesenhoUs) {
+    maiorTempoDesenhoUs = tempoDesenhoUs;
+  }
 }
 
 void relatarDados(uint32_t agora) {
@@ -291,6 +317,10 @@ void relatarDados(uint32_t agora) {
                 static_cast<unsigned long>(pacotesTelemetria),
                 static_cast<unsigned long>(pacotesDescartados),
                 static_cast<unsigned long>(pacotesForaDeOrdem), formatoRecebido);
+  Serial.printf("Tela: intervalo alvo=%lu ms | maior desenho=%lu us\n",
+                static_cast<unsigned long>(Configuracao::INTERVALO_TELA),
+                static_cast<unsigned long>(maiorTempoDesenhoUs));
+  maiorTempoDesenhoUs = 0;
   if (telemetriaRecente(agora)) {
     Serial.printf("Origem=%s | carro=%u | velocidade=%u km/h | RPM=%u | "
                   "marcha=%d | luzesRPM=%u%%\n",
@@ -305,6 +335,9 @@ void setup() {
   pinMode(Configuracao::PINO_BACKLIGHT, OUTPUT);
   digitalWrite(Configuracao::PINO_BACKLIGHT, HIGH);
   Serial.begin(115200);
+  if (!imagemNumeros.getBuffer() || !imagemInformacoes.getBuffer()) {
+    Serial.println("Falha ao reservar memoria para os campos da TFT.");
+  }
   SPI.begin(Configuracao::PINO_SCK, Configuracao::PINO_MISO,
             Configuracao::PINO_MOSI, Configuracao::PINO_CS);
   tela.begin(Configuracao::FREQUENCIA_SPI);

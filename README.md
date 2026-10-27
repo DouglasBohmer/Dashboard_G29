@@ -70,6 +70,8 @@ Há dois ambientes PlatformIO, configurados para ESP32 e porta COM3:
   O parser em `include/telemetria_f1.h` verifica formato, versão, tamanho,
   índice do jogador e valores; o receptor ignora quadros duplicados/atrasados
   e deixa de exibir valores antigos após 3 segundos sem atualização.
+  Os números usam buffers de desenho na RAM para evitar o apagamento visível,
+  com intervalo alvo de 33 ms; informações de diagnóstico usam 500 ms.
 - `diagnostico_tft`: `src/diagnostico_tft.cpp` executa o teste de cores,
   orientação, texto e leitura do controlador, já validado manualmente.
 
@@ -85,12 +87,13 @@ Redes com senha exigem WPA2 por padrão. Para um roteador que use apenas
 WPA/TKIP, a opção `permitirWpaLegado` habilita compatibilidade somente na
 rede cadastrada; o monitor serial também registra os motivos de desconexão.
 O ensaio de bancada confirmou conexão Wi-Fi e obtenção de IP por DHCP após
-esse ajuste. A comunicação com o PS5 ainda precisa ser testada.
+esse ajuste. O usuário confirmou funcionamento com o F1 25 no PS5, e o
+monitor serial confirmou recepção de telemetria no formato 2025.
 
 Veja [Teste da TFT](Docs/Teste_TFT.md) para as ligações e
 [Teste F1 25](Docs/Teste_F1_25.md) para configurar as redes e o jogo.
 `scripts/testar_parser.ps1` executa 26 verificações em tempo de compilação
-sem gravar no ESP32. O teste UDP com o PS5 real ainda está pendente.
+sem gravar no ESP32. O teste na rede da faculdade ainda está pendente.
 
 O backend, o LDR, os LEDs de RPM e o indicador de marchas ainda não foram
 integrados. O GPIO32 permanece em nível alto, com resistor em série no ramo

@@ -90,7 +90,7 @@ Ensaio de bancada em 27/10/2026: a rede de 2,4 GHz usava WPA/TKIP e a TFT
 permanecia sem IP com o limite padrão WPA2. Após habilitar compatibilidade
 somente nessa entrada, o firmware foi compilado, gravado pela COM3 e a
 conexão com IP via DHCP foi confirmada no monitor serial durante 18 segundos.
-A recepção de telemetria do PS5 continua pendente.
+A recepção de telemetria do PS5 foi confirmada pelo usuário no teste seguinte.
 
 ## Gravar o teste de rede
 
@@ -125,7 +125,7 @@ Em Configurações / Telemetria, use:
 | Modo de transmissão / UDP Broadcast Mode | Desativado / Off |
 | Endereço IP UDP / UDP IP Address | IP mostrado na TFT do ESP32 |
 | Porta UDP / UDP Port | 20777 |
-| Taxa de envio / UDP Send Rate | 20 Hz para o primeiro teste |
+| Taxa de envio / UDP Send Rate | 60 Hz para maior fluidez; 20 Hz pode ser usado no diagnóstico inicial |
 | Formato UDP / UDP Format | 2025 |
 
 Mesmo com o Season Pack 2026, selecione explicitamente o formato 2025.
@@ -141,7 +141,7 @@ atual do ESP32 e manter as opções UDP.
 
 - `AGUARDANDO F1 25`: Wi-Fi e receptor UDP prontos, sem telemetria recente.
 - `TELEMETRIA ATIVA`: velocidade e RPM reais do carro identificado por
-  `m_playerCarIndex`, com atualização da TFT a cada 200 ms.
+  `m_playerCarIndex`, com intervalo alvo de 33 ms na atualização dos números.
 - `SINAL DE F1 AUSENTE`: não chegaram novos dados do carro por 3 segundos;
   os valores são substituídos por `--` para não apresentar informação antiga.
 - `SELECIONE UDP 2025`: chegaram pacotes com outro formato.
@@ -162,8 +162,41 @@ conexão às redes cadastradas. O comando `r` não reinicia o ESP32.
 
 Registre, ao testar cada ligação do PS5: local, cabo/Wi-Fi, IP do ESP32,
 foto da TFT, trecho do monitor serial e se os valores acompanham o jogo.
-O ensaio com o PS5 ainda precisa ser realizado; compilação e pacotes
-sintéticos não substituem essa validação de rede e dados reais.
+O usuário confirmou funcionamento no teste real com F1 25 no PS5. O monitor
+serial também confirmou recepção do formato 2025, velocidade/RPM e cerca de
+20 atualizações de telemetria por segundo na configuração usada inicialmente.
+O teste na rede da faculdade ainda precisa ser realizado.
+
+## Fluidez e piscadas nos números
+
+A versão inicial apagava cada campo diretamente na TFT antes de redesenhar
+o texto. Esse intervalo com fundo preto causava piscadas nos valores.
+Agora, dois buffers RGB565 reutilizáveis preparam o fundo e o texto na RAM,
+e cada campo alterado é copiado pronto para a TFT. Os buffers ocupam 21.680
+bytes de RAM e preservam a limpeza de dígitos quando o texto encurta.
+
+Velocidade e RPM são avaliados a cada 33 ms, com alvo de aproximadamente
+30 atualizações por segundo, limitado pelo tempo de desenho e pelos dados
+recebidos. Os demais campos são avaliados a cada 500 ms. Valores iguais
+aos anteriores não são redesenhados. A comunicação SPI permanece em 10 MHz.
+
+No jogo, selecione 60 Hz para fornecer dados com maior frequência ao ESP32.
+Aumentar somente a taxa do jogo não acelerava a versão anterior, cuja tela
+era atualizada a cada 200 ms (5 vezes por segundo). No monitor serial,
+`maior desenho` mostra o maior tempo gasto pela atualização da TFT desde
+o último relatório; compare com o alvo de 33.000 us.
+
+Após compilar e gravar essa versão pela COM3, uma leitura serial de 12
+segundos confirmou Wi-Fi conectado, telemetria real chegando a cerca de
+20 Hz e nenhuma rejeição de pacotes pelo firmware nesse período. Os picos
+de desenho registrados ficaram entre 15,4 e 24,1 ms, abaixo do alvo de
+33 ms, incluindo mudanças de velocidade e RPM. Essa amostra não comprova
+ausência de perdas UDP na rede nem a taxa de desenho em todas as situações.
+
+Ao testar, observe aceleração, frenagem e troca de marchas, além da passagem
+de três para dois dígitos na velocidade. Confira se os valores anteriores
+desaparecem sem a piscada preta do apagamento. A melhora visual deve ser
+confirmada olhando a TFT física; o log serial não mede esse efeito.
 
 ## Verificação do parser
 
@@ -178,3 +211,4 @@ Não grava nada no ESP32.
 - [EA: especificação UDP e formatos F1 25 / Season Pack 2026](https://forums.ea.com/blog/f1-games-game-info-hub-en/ea-sports%E2%84%A2-f1%C2%AE25-2026-season-pack-udp-specification/12187347)
 - [EA: estruturas oficiais F1 25](https://forums.ea.com/t5/s/tghpe58374/attachments/tghpe58374/f1-games-game-info-hub-en/61/5/F1%2025%20Telemetry%20Output%20Structures.txt)
 - [Espressif: API Wi-Fi](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html)
+- [Adafruit: redução de piscadas com buffers de desenho](https://learn.adafruit.com/adafruit-gfx-graphics-library/minimizing-redraw-flicker)
