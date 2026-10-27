@@ -81,6 +81,12 @@ configuração em vez de tentar uma rede fictícia. Redes institucionais com
 portal, autenticação empresarial ou isolamento entre clientes exigem
 avaliação específica.
 
+Redes com senha exigem WPA2 por padrão. Para um roteador que use apenas
+WPA/TKIP, a opção `permitirWpaLegado` habilita compatibilidade somente na
+rede cadastrada; o monitor serial também registra os motivos de desconexão.
+O ensaio de bancada confirmou conexão Wi-Fi e obtenção de IP por DHCP após
+esse ajuste. A comunicação com o PS5 ainda precisa ser testada.
+
 Veja [Teste da TFT](Docs/Teste_TFT.md) para as ligações e
 [Teste F1 25](Docs/Teste_F1_25.md) para configurar as redes e o jogo.
 `scripts/testar_parser.ps1` executa 26 verificações em tempo de compilação

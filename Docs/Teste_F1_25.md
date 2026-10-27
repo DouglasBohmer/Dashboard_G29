@@ -54,6 +54,44 @@ mantida; o firmware não troca de rede apenas porque outra está mais forte.
 Após desconexão, a busca pelas redes cadastradas é retomada automaticamente.
 Adicionar ou alterar uma rede exige recompilar e gravar novamente.
 
+### Rede com WPA antigo
+
+O padrão é exigir WPA2 para redes com senha. Se o roteador usar apenas WPA
+com TKIP, o ESP32 pode encontrar o nome da rede e ainda assim não conectar.
+Prefira WPA2 com AES nas configurações do roteador. Para compatibilidade
+com uma rede WPA existente, o campo opcional `permitirWpaLegado` deve ser
+`true` somente na entrada dessa rede:
+
+```cpp
+struct Rede {
+  const char *nome;
+  const char *senha;
+  bool permitirWpaLegado = false;
+};
+
+constexpr Rede REDES[] = {
+    {"NOME_WIFI_CASA", "SENHA_WIFI_CASA", true},
+    {"NOME_WIFI_FACULDADE", "SENHA_WIFI_FACULDADE"},
+};
+```
+
+Arquivos locais criados antes dessa opção precisam incluir o novo campo
+na estrutura `Rede`. As entradas com dois valores continuam exigindo WPA2.
+Quando o roteador passar a WPA2/AES, remova o `true` e grave novamente.
+O modo de compatibilidade aceita WPA, sem habilitar WEP. A biblioteca
+também permite redes abertas cadastradas com senha vazia.
+
+Se a TFT permanecer em `CONECTANDO WI-FI` e `IP: --`, confira o monitor
+serial: ele registra o código e uma indicação do motivo da desconexão.
+Falhas de autenticação também podem ocorrer por configuração do roteador;
+o código sozinho não comprova senha incorreta.
+
+Ensaio de bancada em 27/10/2026: a rede de 2,4 GHz usava WPA/TKIP e a TFT
+permanecia sem IP com o limite padrão WPA2. Após habilitar compatibilidade
+somente nessa entrada, o firmware foi compilado, gravado pela COM3 e a
+conexão com IP via DHCP foi confirmada no monitor serial durante 18 segundos.
+A recepção de telemetria do PS5 continua pendente.
+
 ## Gravar o teste de rede
 
 No PlatformIO, selecione o ambiente **telemetria_f1**:

@@ -6,6 +6,7 @@ namespace ConfiguracaoWiFi {
 struct Rede {
   const char *nome;
   const char *senha;
+  bool permitirWpaLegado = false;  // Ative somente para redes WPA antigas.
 };
 
 // Copie para configuracao_wifi.local.h e preencha as redes de 2,4 GHz.

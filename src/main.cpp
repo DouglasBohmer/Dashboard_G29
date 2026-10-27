@@ -50,6 +50,33 @@ uint16_t formatoRecebido = 0;
 F1::Resultado erroProtocolo = F1::Resultado::OutroTipo;
 String camposAnteriores[8];
 
+void registrarEventoWiFi(WiFiEvent_t evento, WiFiEventInfo_t informacao) {
+  if (evento != ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
+    return;
+  }
+  const uint8_t motivo = informacao.wifi_sta_disconnected.reason;
+  const char *descricao = "consulte o codigo de desconexao";
+  switch (motivo) {
+    case WIFI_REASON_NO_AP_FOUND:
+      descricao = "rede nao encontrada ou recusada pelo filtro de seguranca";
+      break;
+    case WIFI_REASON_AUTH_FAIL:
+    case WIFI_REASON_AUTH_EXPIRE:
+    case WIFI_REASON_HANDSHAKE_TIMEOUT:
+    case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+      descricao = "falha de autenticacao; confira senha e seguranca do roteador";
+      break;
+    case WIFI_REASON_ASSOC_LEAVE:
+      descricao = "conexao encerrada para uma nova tentativa";
+      break;
+    case WIFI_REASON_BEACON_TIMEOUT:
+      descricao = "roteador deixou de responder; confira sinal e alimentacao";
+      break;
+  }
+  // O evento ocorre em outra tarefa; somente registrar, sem alterar a tela.
+  Serial.printf("Wi-Fi: motivo %u (%s).\n", motivo, descricao);
+}
+
 bool telemetriaRecente(uint32_t agora) {
   return udpAtivo && temTelemetria &&
          agora - ultimaTelemetria < Configuracao::TEMPO_SEM_TELEMETRIA;
@@ -108,7 +135,14 @@ void atualizarConexao(uint32_t agora) {
     inicioTentativa = agora;
     tentandoWiFi = true;
     Serial.printf("Tentando Wi-Fi: %s\n", nomeRedeEmTeste);
-    WiFi.begin(rede.nome, rede.senha);
+    WiFi.setMinSecurity(rede.permitirWpaLegado ? WIFI_AUTH_WPA_PSK
+                                            : WIFI_AUTH_WPA2_PSK);
+    Serial.printf("Seguranca minima: %s.\n",
+                  rede.permitirWpaLegado ? "WPA (compatibilidade explicita)"
+                                        : "WPA2");
+    if (WiFi.begin(rede.nome, rede.senha) == WL_CONNECT_FAILED) {
+      Serial.println("Nao foi possivel iniciar a conexao Wi-Fi.");
+    }
     return;
   }
 }
@@ -280,6 +314,7 @@ void setup() {
     haRedesConfiguradas = haRedesConfiguradas || rede.nome[0] != '\0';
   }
   WiFi.persistent(false);
+  WiFi.onEvent(registrarEventoWiFi);
   WiFi.setHostname("dashboard-g29");
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(false);
