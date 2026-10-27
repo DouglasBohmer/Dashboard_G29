@@ -4,6 +4,10 @@ Este firmware verifica cores, orientação, texto e leitura do controlador via
 SPI. O driver ILI9341 é uma hipótese a testar. Este ensaio não usa Wi-Fi,
 LDR, LEDs de RPM, indicador de marchas nem PWM do backlight.
 
+O código deste teste está em `src/diagnostico_tft.cpp`. Selecione o ambiente
+`diagnostico_tft` para compilá-lo ou gravá-lo; `src/main.cpp` e o ambiente
+padrão `telemetria_f1` agora contêm o teste de recepção dos dados do jogo.
+
 ## Antes de ligar
 
 1. Retire o cabo USB do ESP32 antes de fazer ou mudar qualquer ligação.

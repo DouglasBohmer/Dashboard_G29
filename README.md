@@ -18,7 +18,7 @@ O formato UDP inicial previsto é 2025, a ser selecionado também no jogo.
 | Componente | Função e situação |
 | --- | --- |
 | ESP32 WROOM, 30 pinos, USB-C | Comunicação Wi-Fi, processamento e controle das saídas. |
-| TFT SPI de 3,2 polegadas | Velocidade e demais informações da sessão. Placa identificada na foto como KMRTM32032-SPI, 240×320, V2.0. Anúncio informa ausência de touch. Controlador, tipo de painel e circuito do backlight pendentes de confirmação. |
+| TFT SPI de 3,2 polegadas | KMRTM32032-SPI V2.0, sem touch. Ensaio manual confirmou cores, rotação, imagem 320×240 e ID compatível com ILI9341 (`41 00 93 41`). Tipo de painel e circuito interno do backlight ainda não confirmados. |
 | Display de sete segmentos, um dígito | Indicador exclusivo de marchas, proveniente do Kit Iniciante V8 da RoboCore. A referência do fabricante indica vermelho e cátodo comum; confirmar modelo e pinagem na peça antes de montar. |
 | Cinco LEDs discretos | Barra de RPM: dois verdes, um amarelo e dois vermelhos. |
 | Módulo LDR com saída analógica | Medição de luminosidade para ajuste do brilho da TFT. |
@@ -41,7 +41,8 @@ O formato UDP inicial previsto é 2025, a ser selecionado também no jogo.
 
 A montagem será feita sem protoboard, com ligações diretas por fios, soldas
 ou conectores, GND comum, isolamento das conexões e fixação dos componentes.
-Nenhuma ligação física havia sido feita na última atualização.
+A ligação ESP32–TFT já foi montada e validada manualmente com o diagnóstico.
+Os demais periféricos ainda serão integrados.
 
 A pinagem apresentada no contexto inicial é provisória. Ela precisa ser
 revisada considerando o novo display e os pinos de inicialização do ESP32.
@@ -51,30 +52,44 @@ resistor de 220 Ω ou 300 Ω em série para limitar a corrente nesse caminho.
 
 ## Confirmações pendentes de hardware
 
-1. Identificar o controlador da TFT por documentação do módulo ou leitura de
-   identificação via SPI. Para essa leitura, será necessário ligar também
-   o SDO/MISO da TFT a uma entrada SPI do ESP32; GPIO19 é uma opção para o
-   diagnóstico, ainda sem atribuição definitiva no projeto.
-2. Verificar o circuito do pino LED da TFT para distinguir entrada de
+1. Verificar o circuito do pino LED da TFT para distinguir entrada de
    controle de conexão direta à iluminação. A inspeção e as medições de
    continuidade devem ocorrer com a placa desligada.
-3. Identificar o código do display de sete segmentos e confirmar se é de
+2. Identificar o código do display de sete segmentos e confirmar se é de
    ânodo comum ou cátodo comum, além da correspondência entre pinos e segmentos.
-4. Medir os resistores e conferir as quantidades restantes; a leitura por
+3. Medir os resistores e conferir as quantidades restantes; a leitura por
    foto de uma unidade indica 220 Ω e a caixa do kit lista unidades de 300 Ω.
-5. Validar alimentação e pinagem antes da montagem definitiva.
+4. Validar alimentação e pinagem antes da montagem definitiva.
 
 ## Estado do software
 
-Existe um firmware inicial de diagnóstico da TFT em `src/main.cpp`, com
-teste de cores, orientação, texto e tentativa de leitura do controlador.
-O ambiente `diagnostico_tft` está configurado para ESP32 e porta COM3.
-As ligações específicas e as instruções estão em [Teste da TFT](Docs/Teste_TFT.md).
+Há dois ambientes PlatformIO, configurados para ESP32 e porta COM3:
 
-O firmware de telemetria e o backend ainda não foram implementados. O teste
-não aciona os demais periféricos. O GPIO32 permanece em nível alto, com
-resistor em série no ramo do backlight e sem PWM. A validação física
-da imagem e do controlador depende do ensaio com a tela conectada.
+- `telemetria_f1` (padrão): `src/main.cpp` conecta às redes Wi-Fi cadastradas,
+  recebe UDP F1 25 na porta 20777 e mostra velocidade, RPM e estado da conexão.
+  O parser em `include/telemetria_f1.h` verifica formato, versão, tamanho,
+  índice do jogador e valores; o receptor ignora quadros duplicados/atrasados
+  e deixa de exibir valores antigos após 3 segundos sem atualização.
+- `diagnostico_tft`: `src/diagnostico_tft.cpp` executa o teste de cores,
+  orientação, texto e leitura do controlador, já validado manualmente.
+
+O mesmo receptor atende PS5 por cabo ou por Wi-Fi na rede local. O ESP32
+sempre usa Wi-Fi de 2,4 GHz. Casa e faculdade podem ser cadastradas em
+`include/configuracao_wifi.local.h`, ignorado pelo Git; o exemplo público é
+`include/configuracao_wifi.exemplo.h`. Sem credenciais, a tela solicita a
+configuração em vez de tentar uma rede fictícia. Redes institucionais com
+portal, autenticação empresarial ou isolamento entre clientes exigem
+avaliação específica.
+
+Veja [Teste da TFT](Docs/Teste_TFT.md) para as ligações e
+[Teste F1 25](Docs/Teste_F1_25.md) para configurar as redes e o jogo.
+`scripts/testar_parser.ps1` executa 26 verificações em tempo de compilação
+sem gravar no ESP32. O teste UDP com o PS5 real ainda está pendente.
+
+O backend, o LDR, os LEDs de RPM e o indicador de marchas ainda não foram
+integrados. O GPIO32 permanece em nível alto, com resistor em série no ramo
+do backlight e sem PWM. A marcha é registrada apenas no monitor serial
+do teste UDP; sua exibição ficará no indicador dedicado.
 
 O código do projeto deverá usar nomes e comentários em português do Brasil.
 As orientações da disciplina e os prints das compras estão em `Docs/`.
@@ -85,5 +100,5 @@ As orientações da disciplina e os prints das compras estão em `Docs/`.
 - [Datasheet do ILI9341 — fabricante, hospedado pela Adafruit](https://cdn-shop.adafruit.com/datasheets/ILI9341.pdf)
 - [Cálculo de resistores para LEDs — Adafruit](https://learn.adafruit.com/all-about-leds/forward-voltage-and-kvl)
 
-A referência do ILI9341 servirá para comparação e diagnóstico; sua inclusão
-não confirma que esse seja o controlador da TFT adquirida.
+A compatibilidade com ILI9341 foi verificada no ensaio manual; isso não
+identifica, por si só, o tipo de painel ou o circuito interno do backlight.
