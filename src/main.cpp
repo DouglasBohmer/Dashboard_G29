@@ -7,6 +7,7 @@
 #include "dashboard_f1.h"
 #include "tela_dashboard.h"
 #include "sensor_luminosidade.h"
+#include "integracao_adafruit.h"
 
 #if __has_include("configuracao_wifi.local.h")
 #include "configuracao_wifi.local.h"
@@ -26,6 +27,7 @@ Adafruit_ILI9341 tela(Configuracao::PINO_CS, Configuracao::PINO_DC,
 InterfaceDashboard::Tela painel(tela);
 DashboardF1::Telemetria dados;
 Luminosidade::Sensor sensorLuz;
+AdafruitIO::Integracao nuvem;
 bool pwmDisponivel = false;
 uint8_t brilhoAtual = ConfiguracaoLuminosidade::BRILHO_CLARO;
 uint32_t ultimaLeituraLuz = 0, ultimoAjusteBrilho = 0;
@@ -220,6 +222,7 @@ void relatarDados(uint32_t agora) {
                 digitalRead(ConfiguracaoLuminosidade::PINO_SENSOR),
                 !sensorLuz.valido() ? "estabilizando" : sensorLuz.escuro() ? "escuro" : "claro",
                 (brilhoAtual * 100U + 127U) / 255U, pwmDisponivel ? "ativo" : "indisponivel");
+  nuvem.relatar();
   if (dados.carroRecente(agora)) {
     Serial.printf("Origem=%s | velocidade=%u | RPM=%u | marcha=%d | DRS=%u | luzes=%u%%\n",
                   origemTelemetria.toString().c_str(), dados.carro.velocidadeKmh, dados.carro.rpm,
@@ -259,12 +262,14 @@ void setup() {
   Serial.println("\n=== DASHBOARD F1 25 | MARCHA CENTRAL ===");
   Serial.println("UDP 20777, formato 2025. Comandos: i = informacoes; r = reconectar.");
   Serial.println("ERS: perfil F1 2025, bateria 4 MJ e saldo estimado por volta 4 MJ.");
-  Serial.println("LDR digital: DO no GPIO34; brilho automatico no GPIO32. Adafruit IO pendente.");
+  Serial.println("LDR digital: DO no GPIO34; brilho automatico no GPIO32.");
+  nuvem.iniciar();
 }
 
 void loop() {
   const uint32_t agora = millis();
   atualizarLuminosidade(agora);
+  nuvem.registrarAmostra(sensorLuz.valido(), sensorLuz.escuro(), brilhoAtual, agora);
   atualizarConexao(agora);
   receberTelemetria(agora);
   atualizarTela(agora);

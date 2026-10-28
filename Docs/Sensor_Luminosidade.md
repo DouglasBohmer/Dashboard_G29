@@ -73,7 +73,8 @@ foi feito somente o codigo; a gravacao e o teste do sensor permanecem pendentes.
 
 ## Adafruit IO
 
-A integracao com Adafruit IO foi adiada a pedido do usuario. Esta versao
-funciona localmente e nao publica dados na nuvem. Futuramente o feed deste
-modulo representara claro/escuro; para luminosidade continua sera necessario
-usar uma entrada analogica ou outro sensor.
+A integracao foi adicionada apos o fornecimento das credenciais pelo usuario.
+O feed `ldr-valor` recebe 0 para claro e 1 para escuro; `brilho-tft` recebe
+o percentual PWM aplicado. Veja [Adafruit IO](Adafruit_IO.md) para configurar
+e conferir os graficos. Para luminosidade continua sera necessario usar uma
+entrada analogica ou outro sensor.

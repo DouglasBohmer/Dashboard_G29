@@ -5,6 +5,7 @@ O ambiente `telemetria_f1` implementa o layout de marcha central na TFT de
 resistor em série no backlight. O sensor digital de luminosidade usa DO no
 GPIO34 e compartilha a alimentação de 3,3 V; veja
 [Sensor de luminosidade](Sensor_Luminosidade.md) para a montagem e os testes.
+O [Adafruit IO](Adafruit_IO.md) recebe estado do sensor e brilho por MQTT/TLS.
 
 ## Campos
 
