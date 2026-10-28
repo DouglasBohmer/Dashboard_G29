@@ -6,6 +6,7 @@
 #include "configuracao_tela.h"
 #include "dashboard_f1.h"
 #include "tela_dashboard.h"
+#include "sensor_luminosidade.h"
 
 #if __has_include("configuracao_wifi.local.h")
 #include "configuracao_wifi.local.h"
@@ -24,6 +25,10 @@ Adafruit_ILI9341 tela(Configuracao::PINO_CS, Configuracao::PINO_DC,
                       Configuracao::PINO_RESET);
 InterfaceDashboard::Tela painel(tela);
 DashboardF1::Telemetria dados;
+Luminosidade::Sensor sensorLuz;
+bool pwmDisponivel = false;
+uint8_t brilhoAtual = ConfiguracaoLuminosidade::BRILHO_CLARO;
+uint32_t ultimaLeituraLuz = 0, ultimoAjusteBrilho = 0;
 WiFiUDP receptor;
 uint8_t pacoteRecebido[Configuracao::TAMANHO_BUFFER];
 bool haRedesConfiguradas = false, tentandoWiFi = false, udpAtivo = false;
@@ -37,6 +42,34 @@ uint32_t pacotesDescartados = 0, pacotesForaDeOrdem = 0;
 uint32_t pacotesPorTipo[16]{};
 uint16_t formatoRecebido = 0;
 DashboardF1::Resultado erroProtocolo = DashboardF1::Resultado::Ignorado;
+
+void iniciarLuminosidade() {
+  pinMode(ConfiguracaoLuminosidade::PINO_SENSOR, INPUT);
+  // Manter o resistor de 220 ou 300 ohms entre GPIO32 e LED da TFT.
+  pinMode(Configuracao::PINO_BACKLIGHT, OUTPUT);
+  digitalWrite(Configuracao::PINO_BACKLIGHT, HIGH);
+  pwmDisponivel = ledcSetup(ConfiguracaoLuminosidade::CANAL_PWM,
+                            ConfiguracaoLuminosidade::FREQUENCIA_PWM_HZ,
+                            ConfiguracaoLuminosidade::RESOLUCAO_PWM_BITS) > 0;
+  if (pwmDisponivel) {
+    ledcAttachPin(Configuracao::PINO_BACKLIGHT, ConfiguracaoLuminosidade::CANAL_PWM);
+    ledcWrite(ConfiguracaoLuminosidade::CANAL_PWM, brilhoAtual);
+  } else Serial.println("Falha no PWM; backlight mantido aceso.");
+  sensorLuz.atualizar(digitalRead(ConfiguracaoLuminosidade::PINO_SENSOR) == HIGH, millis());
+}
+
+void atualizarLuminosidade(uint32_t agora) {
+  if (agora - ultimaLeituraLuz >= ConfiguracaoLuminosidade::INTERVALO_LEITURA_MS) {
+    ultimaLeituraLuz = agora;
+    sensorLuz.atualizar(digitalRead(ConfiguracaoLuminosidade::PINO_SENSOR) == HIGH, agora);
+  }
+  if (!pwmDisponivel || agora - ultimoAjusteBrilho < ConfiguracaoLuminosidade::INTERVALO_AJUSTE_MS) return;
+  ultimoAjusteBrilho = agora;
+  const uint8_t novoBrilho = Luminosidade::aproximarBrilho(brilhoAtual, sensorLuz.brilhoAlvo());
+  if (novoBrilho == brilhoAtual) return;
+  brilhoAtual = novoBrilho;
+  ledcWrite(ConfiguracaoLuminosidade::CANAL_PWM, brilhoAtual);
+}
 
 void registrarEventoWiFi(WiFiEvent_t evento, WiFiEventInfo_t informacao) {
   if (evento != ARDUINO_EVENT_WIFI_STA_DISCONNECTED) return;
@@ -161,6 +194,8 @@ void atualizarTela(uint32_t agora) {
     situacao = "VERSAO UDP INCOMPATIVEL";
   } else {
     situacao = String(dados.carroRecente(agora) ? "F1 ATIVO | " : "AGUARDANDO F1 | ") + WiFi.localIP().toString();
+    situacao += String(" | LUZ:") + (!sensorLuz.valido() ? "--" : sensorLuz.escuro() ? "ESC" : "CLA") +
+                " B" + String((brilhoAtual * 100U + 127U) / 255U) + "%";
   }
   painel.atualizar(dados, agora, situacao, conectado && udpAtivo);
   const uint32_t tempo = micros() - inicio;
@@ -181,6 +216,10 @@ void relatarDados(uint32_t agora) {
                 static_cast<unsigned long>(Configuracao::INTERVALO_TELA),
                 static_cast<unsigned long>(maiorTempoDesenhoUs), ESP.getFreeHeap());
   maiorTempoDesenhoUs = 0;
+  Serial.printf("Luz: DO=%u | ambiente=%s | brilho PWM=%u%% | PWM=%s\n",
+                digitalRead(ConfiguracaoLuminosidade::PINO_SENSOR),
+                !sensorLuz.valido() ? "estabilizando" : sensorLuz.escuro() ? "escuro" : "claro",
+                (brilhoAtual * 100U + 127U) / 255U, pwmDisponivel ? "ativo" : "indisponivel");
   if (dados.carroRecente(agora)) {
     Serial.printf("Origem=%s | velocidade=%u | RPM=%u | marcha=%d | DRS=%u | luzes=%u%%\n",
                   origemTelemetria.toString().c_str(), dados.carro.velocidadeKmh, dados.carro.rpm,
@@ -203,10 +242,8 @@ void relatarDados(uint32_t agora) {
 }
 
 void setup() {
-  // Manter o resistor de 220 ou 300 ohms entre GPIO32 e LED da TFT.
-  pinMode(Configuracao::PINO_BACKLIGHT, OUTPUT);
-  digitalWrite(Configuracao::PINO_BACKLIGHT, HIGH);
   Serial.begin(115200);
+  iniciarLuminosidade();
   if (!painel.memoriaDisponivel()) Serial.println("Falha ao reservar buffer de desenho da TFT.");
   SPI.begin(Configuracao::PINO_SCK, Configuracao::PINO_MISO,
             Configuracao::PINO_MOSI, Configuracao::PINO_CS);
@@ -222,10 +259,12 @@ void setup() {
   Serial.println("\n=== DASHBOARD F1 25 | MARCHA CENTRAL ===");
   Serial.println("UDP 20777, formato 2025. Comandos: i = informacoes; r = reconectar.");
   Serial.println("ERS: perfil F1 2025, bateria 4 MJ e saldo estimado por volta 4 MJ.");
+  Serial.println("LDR digital: DO no GPIO34; brilho automatico no GPIO32. Adafruit IO pendente.");
 }
 
 void loop() {
   const uint32_t agora = millis();
+  atualizarLuminosidade(agora);
   atualizarConexao(agora);
   receberTelemetria(agora);
   atualizarTela(agora);

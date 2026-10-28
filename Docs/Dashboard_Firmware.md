@@ -2,7 +2,9 @@
 
 O ambiente `telemetria_f1` implementa o layout de marcha central na TFT de
 320×240. Mantenha a montagem de [Teste_TFT.md](Teste_TFT.md), inclusive o
-resistor em série no backlight. Não são necessários novos fios.
+resistor em série no backlight. O sensor digital de luminosidade usa DO no
+GPIO34 e compartilha a alimentação de 3,3 V; veja
+[Sensor de luminosidade](Sensor_Luminosidade.md) para a montagem e os testes.
 
 ## Campos
 
@@ -17,6 +19,7 @@ resistor em série no backlight. Não são necessários novos fios.
 - Barras VOLTA e BATERIA, seus percentuais e modo do ERS.
 - Tempo atual, melhor pessoal e melhor válida da prova no rodapé.
 - Estado da conexão e IP para configurar o destino UDP no jogo.
+- Estado claro/escuro e comando percentual do brilho no rodapé conectado.
 
 Dados não recebidos ou vencidos usam `--`. A volta atual inválida aparece em
 vermelho. Mudanças de sessão limpam os dados anteriores; flashbacks invalidam

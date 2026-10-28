@@ -22,7 +22,7 @@ O formato UDP inicial previsto é 2025, a ser selecionado também no jogo.
 | TFT SPI de 3,2 polegadas | KMRTM32032-SPI V2.0, sem touch. Ensaio manual confirmou cores, rotação, imagem 320×240 e ID compatível com ILI9341 (`41 00 93 41`). Tipo de painel e circuito interno do backlight ainda não confirmados. |
 | Display de sete segmentos, um dígito | Opção para indicar marchas, proveniente do Kit Iniciante V8 da RoboCore. Uso ainda em avaliação. A referência do fabricante indica vermelho e cátodo comum; confirmar modelo e pinagem na peça antes de montar. |
 | Cinco LEDs discretos | Barra de RPM: dois verdes, um amarelo e dois vermelhos. |
-| Módulo LDR com saída analógica | Medição de luminosidade para ajuste do brilho da TFT. |
+| Módulo LDR com saída digital DO | Foto confirmou VCC, GND e DO. Detecta claro/escuro pelo GPIO34 e ajusta o brilho da TFT pelo GPIO32. |
 | Resistores | Foto de uma unidade compatível com 220 Ω ±5%. A caixa do kit também lista 15 resistores de 300 Ω e cinco de 10 kΩ. Quantidades restantes e valores medidos ainda não conferidos. |
 
 ## Indicador dedicado de marchas
@@ -102,9 +102,13 @@ campos, cálculos de energia, desenho e verificações; o
 `scripts/testar_parser.ps1` executa 26 verificações em tempo de compilação
 sem gravar no ESP32. O teste na rede da faculdade ainda está pendente.
 
-O backend, o LDR, os LEDs de RPM e o indicador de marchas ainda não foram
-integrados. O GPIO32 permanece em nível alto, com resistor em série no ramo
-do backlight e sem PWM. A marcha aparece centralizada na TFT.
+O LDR digital foi integrado com confirmação de estado por 300 ms e transição
+gradual do PWM no GPIO32: 100% no claro e aproximadamente 35% no escuro.
+Veja [Sensor de luminosidade](Docs/Sensor_Luminosidade.md) para montagem,
+ajuste do limite e validação. `scripts/testar_luminosidade.ps1` verifica a
+lógica sem gravar o ESP32. A integração com Adafruit IO ficou para depois,
+a pedido do usuário. O backend, os LEDs de RPM e o indicador de marchas
+ainda não foram integrados. A marcha aparece centralizada na TFT.
 
 O código do projeto deverá usar nomes e comentários em português do Brasil.
 As orientações da disciplina e os prints das compras estão em `Docs/`.
