@@ -103,7 +103,7 @@ campos, cálculos de energia, desenho e verificações; o
 sem gravar no ESP32. O teste na rede da faculdade ainda está pendente.
 
 O LDR digital foi integrado com confirmação de estado por 300 ms e transição
-gradual do PWM no GPIO32: 100% no claro e aproximadamente 35% no escuro.
+gradual do PWM no GPIO32: 100% no claro e aproximadamente 10% no escuro.
 Veja [Sensor de luminosidade](Docs/Sensor_Luminosidade.md) para montagem,
 ajuste do limite e validação. `scripts/testar_luminosidade.ps1` verifica a
 lógica sem gravar o ESP32. A integração com Adafruit IO ficou para depois,

@@ -26,7 +26,7 @@ montagem, com LDR avulso.
 - GPIO34 como entrada digital, lida a cada 20 ms.
 - Um novo estado precisa permanecer estavel por 300 ms para ser aceito.
 - Claro: PWM 255/255, aproximadamente 100% do ciclo ativo.
-- Escuro: PWM 90/255, aproximadamente 35% do ciclo ativo.
+- Escuro: PWM 26/255, aproximadamente 10% do ciclo ativo.
 - A transicao muda cinco unidades de PWM a cada 20 ms, sem espera bloqueante.
 - PWM de 5 kHz, resolucao de 8 bits, canal 0, no GPIO32.
 - Antes da primeira leitura confirmada, a tela permanece no brilho maximo.
@@ -34,9 +34,15 @@ montagem, com LDR avulso.
 
 Os percentuais representam o comando PWM, nao uma medicao de luz ou uma
 garantia de brilho visual proporcional. Na tela conectada, o rodape inclui
-`LUZ:CLA` ou `LUZ:ESC` e `B100%` ou `B35%`. Durante a transicao, o percentual
+`LUZ:CLA` ou `LUZ:ESC` e `B100%` ou `B10%`. Durante a transicao, o percentual
 acompanha o PWM aplicado. No monitor serial, o relatorio a cada dois segundos
 mostra DO, ambiente, brilho e disponibilidade do PWM; `i` repete o relatorio.
+
+Para escolher outro brilho no escuro, ajuste `BRILHO_ESCURO` de 0 a 255:
+13 corresponde a aproximadamente 5%, 26 a 10% e 51 a 20% do ciclo ativo.
+O modulo DO continua selecionando apenas claro e escuro. Mais patamares
+automaticos exigem uma leitura de luminosidade variavel, por exemplo o LDR
+avulso com divisor resistivo e entrada analogica.
 
 O codigo inicialmente interpreta DO alto como escuro. Confirme no modulo:
 se a tela aumentar de brilho ao cobrir o LDR, altere

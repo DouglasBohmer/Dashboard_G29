@@ -37,7 +37,7 @@ static_assert(!lerEscuro(1000).valido(), "Primeira leitura aguarda confirmacao")
 static_assert(!lerEscuro(1299).valido(), "Leitura antes de 300 ms ainda pendente");
 static_assert(lerEscuro(1300).valido(), "Leitura confirmada apos 300 ms");
 static_assert(lerEscuro(1300).escuro(), "Nivel configurado indica escuro");
-static_assert(lerEscuro(1300).brilhoAlvo() == 90, "Escuro reduz PWM para 90");
+static_assert(lerEscuro(1300).brilhoAlvo() == 26, "Escuro reduz PWM para aproximadamente 10 por cento");
 static_assert(mudarParaClaro(1799).escuro(), "Transicao preserva estado anterior");
 static_assert(!mudarParaClaro(1800).escuro(), "Claro confirmado apos 300 ms");
 static_assert(mudarParaClaro(1800).brilhoAlvo() == 255, "Claro restaura brilho maximo");
