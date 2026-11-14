@@ -56,6 +56,6 @@ static_assert(!contarNaVirada(9743), "Virada do millis preserva intervalo antes 
 static_assert(contarNaVirada(9744), "Virada do millis libera envio no prazo");
 static_assert(reconexaoLimitada(), "Limitar tentativas mesmo com falhas repetidas");
 static_assert(AdafruitIO::percentualBrilho(0) == 0, "PWM zero representa zero por cento");
-static_assert(AdafruitIO::percentualBrilho(26) == 10, "Brilho no escuro representa 10 por cento");
+static_assert(AdafruitIO::percentualBrilho(26) == 10, "PWM 26 representa 10 por cento");
 static_assert(AdafruitIO::percentualBrilho(128) == 50, "Meio ciclo representa 50 por cento");
 static_assert(AdafruitIO::percentualBrilho(255) == 100, "Ciclo completo representa 100 por cento");

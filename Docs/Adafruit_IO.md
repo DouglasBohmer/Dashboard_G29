@@ -18,7 +18,7 @@ Recompile e faça Upload após alterar a configuração.
 | `brilho-tft` | Ciclo PWM aplicado, em percentual | 0 a 100 |
 
 O sensor possui saída DO; `ldr-valor` não representa uma medição analógica,
-lux ou percentual de iluminação. O brilho permanece em aproximadamente 10%
+lux ou percentual de iluminação. O brilho permanece em aproximadamente 50%
 no escuro e 100% no claro, com valores intermediários durante a transição.
 O envio aguarda a confirmação inicial do sensor.
 

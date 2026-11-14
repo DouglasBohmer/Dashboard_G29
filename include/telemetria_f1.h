@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <array>
 
 namespace F1 {
 constexpr uint16_t FORMATO = 2025;
@@ -9,6 +10,8 @@ constexpr size_t TAMANHO_CABECALHO = 29;
 constexpr size_t TAMANHO_CARRO = 60;
 constexpr uint8_t QUANTIDADE_CARROS = 22;
 constexpr size_t TAMANHO_TELEMETRIA = 1352;
+// Ordem dos vetores de rodas no protocolo da EA.
+enum Roda : uint8_t { TraseiraEsquerda, TraseiraDireita, DianteiraEsquerda, DianteiraDireita };
 
 enum class Resultado {
   Telemetria,
@@ -29,6 +32,9 @@ struct DadosCarro {
   uint64_t sessao = 0;
   uint32_t quadro = 0;
   bool drsAtivo = false;
+  std::array<uint16_t, 4> temperaturaFreios{};
+  std::array<uint8_t, 4> temperaturaPneusInterna{};
+  std::array<uint8_t, 4> temperaturaPneusExterna{};
 };
 
 struct PacoteInterpretado {
@@ -91,7 +97,10 @@ constexpr PacoteInterpretado interpretar(const uint8_t *pacote, size_t tamanho) 
   return {Resultado::Telemetria,
           {ler16(carro), ler16(carro + 16), static_cast<int8_t>(marcha),
            carro[19], indiceCarro, ler64(pacote + 7), ler32(pacote + 23),
-           carro[18] == 1}};
+           carro[18] == 1,
+           {ler16(carro + 22), ler16(carro + 24), ler16(carro + 26), ler16(carro + 28)},
+           {carro[34], carro[35], carro[36], carro[37]},
+           {carro[30], carro[31], carro[32], carro[33]}}};
 }
 
 constexpr bool quadroMaisRecente(uint32_t novo, uint32_t anterior) {

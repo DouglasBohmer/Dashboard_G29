@@ -19,26 +19,26 @@ padrão `telemetria_f1` agora contêm o teste de recepção dos dados do jogo.
 
 ## Ligações deste diagnóstico
 
-Esta pinagem substitui a proposta inicial somente para o ensaio. CS e D/C
-foram movidos dos GPIOs de inicialização 15 e 2 para GPIO21 e GPIO22.
+Esta pinagem acompanha a montagem final de 12/11/2026. A biblioteca usa
+CS=-1 e RESET=-1, com seleção fixa e reset por comando.
 
 | Pino impresso na TFT | Ligar no ESP32 | Observação |
 | --- | --- | --- |
 | VCC | 3V3 | Alimentação inicial conservadora de 3,3 V. |
 | GND | GND | Terra comum entre as placas. |
-| CS | D21 / GPIO21 | Seleção da TFT. |
-| RESET | D4 / GPIO4 | Não conectar ao EN do ESP32. |
+| CS | GND | Seleção fixa da TFT. |
+| RESET | 3V3 | Reset por comando no firmware. |
 | D/C | D22 / GPIO22 | Seleção de comando/dados. |
 | SDI | D23 / GPIO23 | MOSI, dados do ESP32 para a TFT. |
 | SCK | D18 / GPIO18 | Clock SPI. |
-| SDO(MISO) | D19 / GPIO19 | Retorno da TFT para leitura do controlador. |
+| SDO(MISO) | D35 / GPIO35 | Retorno da TFT para leitura do controlador. |
 | LED | D32 / GPIO32 através de um resistor de 220 Ω ou 300 Ω | O firmware mantém o GPIO32 em nível alto; sem PWM. |
 
 O resistor do pino LED pode ficar em qualquer sentido. A ligação é:
 `D32 do ESP32 -> resistor -> LED da TFT`.
 
-Assim, o único pino 3V3 do ESP32 fica reservado ao VCC da TFT, sem necessidade
-de derivação. Use jumpers FxF para os pinos macho das duas placas. No ramo
+O pino 3V3 do ESP32 alimenta VCC, RESET e os sensores pela distribuição
+soldada na fenolite. Use jumpers FxF para os pinos macho das duas placas. No ramo
 do backlight, a montagem pode ser feita com dois jumpers FxF: uma extremidade
 no D32, as duas extremidades centrais nas pernas do resistor e a última
 extremidade no LED da TFT. Isole as pernas expostas e confira se ficam firmes
@@ -112,5 +112,6 @@ da montagem mostrando os nomes dos pinos usados nas duas placas.
 - [Biblioteca Adafruit ILI9341](https://github.com/adafruit/Adafruit_ILI9341)
 - [Datasheet ILI9341, comando Read ID4 na página 187](https://cdn-shop.adafruit.com/datasheets/ILI9341.pdf)
 
-A pinagem definitiva e o controle automático de brilho serão definidos
-após validar fisicamente a tela e seu circuito de alimentação/backlight.
+O ambiente `telemetria_f1` usa esta pinagem e aplica PWM no GPIO32 para o
+controle automático de brilho. O diagnóstico mantém os indicadores físicos
+em LOW durante seus testes visuais.

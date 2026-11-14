@@ -14,7 +14,7 @@ Com o USB desconectado, ligue:
 | GND | GND |
 | DO | D34 / GPIO34 |
 
-A protoboard distribui o 3V3 no ensaio atual. O LED da TFT continua no GPIO32,
+A fenolite distribui o 3V3 na montagem final. O LED da TFT usa o GPIO32,
 com o mesmo resistor de 220 ou 300 ohms em serie. O modulo ja possui seu
 circuito de comparacao; o divisor com resistor de 10 kohms pertence a outra
 montagem, com LDR avulso.
@@ -26,20 +26,24 @@ montagem, com LDR avulso.
 - GPIO34 como entrada digital, lida a cada 20 ms.
 - Um novo estado precisa permanecer estavel por 300 ms para ser aceito.
 - Claro: PWM 255/255, aproximadamente 100% do ciclo ativo.
-- Escuro: PWM 26/255, aproximadamente 10% do ciclo ativo.
+- Escuro: PWM 128/255, aproximadamente 50% do ciclo ativo.
 - A transicao muda cinco unidades de PWM a cada 20 ms, sem espera bloqueante.
 - PWM de 5 kHz, resolucao de 8 bits, canal 0, no GPIO32.
 - Antes da primeira leitura confirmada, a tela permanece no brilho maximo.
 - Sensor e controle de brilho funcionam mesmo sem Wi-Fi ou telemetria do F1.
+- Apenas a iluminacao da TFT acompanha o sensor. Os LEDs de RPM, DRS e
+  bandeiras continuam comandados pelo jogo, sem regulagem pelo LDR.
 
 Os percentuais representam o comando PWM, nao uma medicao de luz ou uma
-garantia de brilho visual proporcional. Na tela conectada, o rodape inclui
-`LUZ:CLA` ou `LUZ:ESC` e `B100%` ou `B10%`. Durante a transicao, o percentual
-acompanha o PWM aplicado. No monitor serial, o relatorio a cada dois segundos
+garantia de brilho visual proporcional. A faixa inferior da TFT agora exibe
+somente o modo ERS; os percentuais continuam no Monitor Serial e no Adafruit IO.
+Durante a transicao, o percentual acompanha o PWM aplicado. No monitor serial, o relatorio a cada dois segundos
 mostra DO, ambiente, brilho e disponibilidade do PWM; `i` repete o relatorio.
+Mudancas confirmadas de claro/escuro tambem geram um registro imediato
+`LDR confirmado`, com o estado e o percentual alvo.
 
 Para escolher outro brilho no escuro, ajuste `BRILHO_ESCURO` de 0 a 255:
-13 corresponde a aproximadamente 5%, 26 a 10% e 51 a 20% do ciclo ativo.
+13 corresponde a aproximadamente 5%, 26 a 10%, 51 a 20% e 128 a 50% do ciclo ativo.
 O modulo DO continua selecionando apenas claro e escuro. Mais patamares
 automaticos exigem uma leitura de luminosidade variavel, por exemplo o LDR
 avulso com divisor resistivo e entrada analogica.
@@ -58,6 +62,14 @@ de um unico LED aceso no modulo nao confirma a leitura do ESP32.
 5. Se DO nao mudar, ajuste o potenciometro azul aos poucos ate obter a comutacao.
 6. Posicione o sensor para receber a luz do ambiente, evitando a iluminacao
    direta da propria TFT, que pode causar alternancia entre os estados.
+
+Na leitura serial realizada em 13/11/2026, DO permaneceu em 1 em todas as
+amostras por aproximadamente 14 segundos. Com a polaridade configurada,
+esse estado seleciona 50%. O controle automatico continua presente; essa
+amostra nao confirmou a comutacao fisica entre claro e escuro. Se DO ficar
+constante ao iluminar e cobrir, confira a ligacao DO–GPIO34 e ajuste o limite
+do potenciometro. Nao se deve substituir a leitura digital DO por uma leitura
+analogica para simular niveis de luz que esse modulo nao fornece.
 
 O projeto usa Arduino-ESP32 2.x e suas funcoes `ledcSetup`, `ledcAttachPin`
 e `ledcWrite`; a API 3.x tem outra assinatura. Veja a

@@ -3,10 +3,12 @@
 #include <cmath>
 #include <cstring>
 #include "telemetria_f1.h"
+#include "delta_ultima_volta.h"
 
 namespace DashboardF1 {
 constexpr uint32_t VALIDADE_DADOS = 3000;
 constexpr uint32_t VALIDADE_HISTORICO = 10000;
+constexpr uint32_t BOTAO_ACAO_UDP_1 = 0x00100000UL;
 
 enum class Resultado {
   Atualizado, Ignorado, FormatoIncompativel, VersaoIncompativel,
@@ -41,6 +43,9 @@ struct DadosVolta {
   uint8_t numero = 0;
   bool invalida = false;
   uint32_t tempo = 0;
+  uint32_t anterior = 0;
+  DeltaVolta delta;
+  uint8_t indiceFrente = 255, indiceAtras = 255;
   Intervalo frente;
   Intervalo atras;
 };
@@ -61,8 +66,45 @@ class Telemetria {
   uint8_t formula = 255;
   uint8_t tipoSessao = 0;
   uint16_t comprimentoPista = 0;
+  int8_t bandeiraFia = -1;
+  bool jogoPausado = false;
+  bool carroPausadoNaRede = false;
 
-  void reiniciar() { *this = Telemetria{}; }
+  void reiniciar() {
+    carro = {}; volta = {}; energia = {};
+    totalVoltas = tipoSessao = 0; formula = 255; comprimentoPista = 0;
+    bandeiraFia = -1; jogoPausado = carroPausadoNaRede = false;
+    haIdentificacao = haSessaoAnterior = false;
+    sessao = sessaoAnterior = 0; jogador = 0;
+    haCarro = haVolta = haEnergia = haSessao = false;
+    ultimoCarro = ultimaVolta = ultimaEnergia = ultimaSessao = 0;
+    std::memset(quadrosTipo, 0, sizeof(quadrosTipo));
+    std::memset(haQuadroTipo, 0, sizeof(haQuadroTipo));
+    std::memset(quadrosHistorico, 0, sizeof(quadrosHistorico));
+    std::memset(haQuadroHistorico, 0, sizeof(haQuadroHistorico));
+    std::memset(melhores, 0, sizeof(melhores));
+    std::memset(ultimosHistoricos, 0, sizeof(ultimosHistoricos));
+    std::memset(haHistorico, 0, sizeof(haHistorico));
+    std::memset(nomes, 0, sizeof(nomes));
+    std::memset(controladoIa, 0, sizeof(controladoIa));
+    quantidadeParticipantes = 0;
+    estadoBotoes = 0; acaoUdp1Pendente = false;
+    haQuadroBotoes = false; quadroBotoes = 0;
+    limitarHistorico = false; inicioHistorico = 0;
+    referenciaDelta.reiniciar();
+  }
+
+  const char *nomePiloto(uint8_t indice) const {
+    return indice < quantidadeParticipantes ? nomes[indice] : "";
+  }
+  bool pilotoIa(uint8_t indice) const {
+    return indice < quantidadeParticipantes && controladoIa[indice];
+  }
+  bool consumirAcaoUdp1() {
+    const bool pendente = acaoUdp1Pendente;
+    acaoUdp1Pendente = false;
+    return pendente;
+  }
 
   bool carroRecente(uint32_t agora) const {
     return haCarro && agora - ultimoCarro < VALIDADE_DADOS;
@@ -75,6 +117,10 @@ class Telemetria {
   }
   bool sessaoRecente(uint32_t agora) const {
     return haSessao && agora - ultimaSessao < VALIDADE_HISTORICO;
+  }
+  bool pausado(uint32_t agora) const {
+    return (sessaoRecente(agora) && jogoPausado) ||
+           (energiaRecente(agora) && carroPausadoNaRede);
   }
   uint32_t minhaMelhor(uint32_t agora) const {
     return melhorRecente(jogador, agora);
@@ -98,6 +144,7 @@ class Telemetria {
       case 1: esperado = 753; break;
       case 2: esperado = 1285; break;
       case 3: esperado = 45; break;
+      case 4: esperado = 1284; break;
       case 6: esperado = F1::TAMANHO_TELEMETRIA; break;
       case 7: esperado = 1239; break;
       case 11: esperado = 1460; break;
@@ -108,7 +155,15 @@ class Telemetria {
     const uint8_t indiceJogador = pacote[27];
     if (indiceJogador >= F1::QUANTIDADE_CARROS) return Resultado::IndiceInvalido;
     const bool flashback = tipo == 3 && std::memcmp(pacote + 29, "FLBK", 4) == 0;
-    if (tipo == 3 && !flashback) return Resultado::Ignorado;
+    const bool botoes = tipo == 3 && std::memcmp(pacote + 29, "BUTN", 4) == 0;
+    if (tipo == 3 && !flashback && !botoes) return Resultado::Ignorado;
+    if (tipo == 4) {
+      if (pacote[29] > F1::QUANTIDADE_CARROS) return Resultado::ValorInvalido;
+      for (uint8_t indice = 0; indice < pacote[29]; ++indice) {
+        const uint8_t *participante = pacote + 30 + indice * 57;
+        if (participante[0] > 1 || participante[44] > 4) return Resultado::ValorInvalido;
+      }
+    }
 
     uint8_t indiceHistorico = 0;
     if (tipo == 11) {
@@ -130,7 +185,10 @@ class Telemetria {
       const float aplicada = lerFloat(estado + 50);
       if (!std::isfinite(carga) || !std::isfinite(aplicada) || carga < 0 ||
           aplicada < 0 || carga > 1.0e9f || aplicada > 1.0e9f ||
-          estado[41] > 3 || estado[22] > 1) return Resultado::ValorInvalido;
+          estado[41] > 3 || estado[22] > 1 ||
+          (estado[28] != 255 && estado[28] > 3) || estado[54] > 1) {
+        return Resultado::ValorInvalido;
+      }
     }
 
     const uint64_t novaSessao = F1::ler64(pacote + 7);
@@ -148,9 +206,13 @@ class Telemetria {
       jogador = indiceJogador;
       haIdentificacao = true;
     }
-    bool &haQuadro = tipo == 11 ? haQuadroHistorico[indiceHistorico] : haQuadroTipo[tipo];
-    uint32_t &ultimoQuadro = tipo == 11 ? quadrosHistorico[indiceHistorico] : quadrosTipo[tipo];
-    if (haQuadro && !F1::quadroMaisRecente(quadro, ultimoQuadro)) {
+    bool &haQuadro = botoes ? haQuadroBotoes : tipo == 11 ? haQuadroHistorico[indiceHistorico] : haQuadroTipo[tipo];
+    uint32_t &ultimoQuadro = botoes ? quadroBotoes : tipo == 11 ? quadrosHistorico[indiceHistorico] : quadrosTipo[tipo];
+    // Dois eventos podem ocorrer no mesmo quadro. Aceitar mudanca dos botoes,
+    // preservando a ordenacao independente dos flashbacks e demais pacotes.
+    const bool mudancaNoMesmoQuadro = botoes && quadro == ultimoQuadro &&
+                                     F1::ler32(pacote + 33) != estadoBotoes;
+    if (haQuadro && !F1::quadroMaisRecente(quadro, ultimoQuadro) && !mudancaNoMesmoQuadro) {
       return Resultado::ForaDeOrdem;
     }
     if (tipo == 11 && limitarHistorico && quadro != inicioHistorico &&
@@ -164,6 +226,7 @@ class Telemetria {
         comprimentoPista = F1::ler16(pacote + 33);
         tipoSessao = pacote[35];
         formula = pacote[37];
+        jogoPausado = pacote[43] == 1;
         haSessao = true;
         ultimaSessao = agora;
         break;
@@ -173,10 +236,29 @@ class Telemetria {
         ultimaVolta = agora;
         break;
       case 3:
+        if (botoes) {
+          const uint32_t novoEstado = F1::ler32(pacote + 33);
+          if ((novoEstado & BOTAO_ACAO_UDP_1) && !(estadoBotoes & BOTAO_ACAO_UDP_1))
+            acaoUdp1Pendente = true;
+          estadoBotoes = novoEstado;
+          break;
+        }
         limparHistoricos(quadro);
+        referenciaDelta.reiniciar();
+        volta.delta = {};
         haVolta = false;
         haEnergia = false;
         haCarro = false;
+        break;
+      case 4:
+        quantidadeParticipantes = pacote[29];
+        std::memset(nomes, 0, sizeof(nomes));
+        std::memset(controladoIa, 0, sizeof(controladoIa));
+        for (uint8_t indice = 0; indice < quantidadeParticipantes; ++indice) {
+          const uint8_t *participante = pacote + 30 + indice * 57;
+          std::memcpy(nomes[indice], participante + 7, 32);
+          controladoIa[indice] = participante[0] == 1;
+        }
         break;
       case 6:
         carro = dadosCarro.dados;
@@ -185,6 +267,8 @@ class Telemetria {
         break;
       case 7:
         energia = {lerFloat(estado + 37), lerFloat(estado + 50), estado[41], estado[22] == 1};
+        bandeiraFia = estado[28] == 255 ? -1 : static_cast<int8_t>(estado[28]);
+        carroPausadoNaRede = estado[54] == 1;
         haEnergia = true;
         ultimaEnergia = agora;
         break;
@@ -222,6 +306,12 @@ class Telemetria {
   bool haHistorico[22]{};
   bool limitarHistorico = false;
   uint32_t inicioHistorico = 0;
+  char nomes[F1::QUANTIDADE_CARROS][33]{};
+  bool controladoIa[F1::QUANTIDADE_CARROS]{};
+  uint8_t quantidadeParticipantes = 0;
+  uint32_t estadoBotoes = 0, quadroBotoes = 0;
+  bool acaoUdp1Pendente = false, haQuadroBotoes = false;
+  DeltaUltimaVolta referenciaDelta;
 
   uint32_t melhorRecente(uint8_t indice, uint32_t agora) const {
     return haHistorico[indice] && agora - ultimosHistoricos[indice] < VALIDADE_HISTORICO
@@ -265,18 +355,22 @@ class Telemetria {
     const uint8_t *atual = pacote + 29 + jogador * 57;
     if (haVolta && atual[33] < volta.numero) limparHistoricos(quadro);
     volta = {};
-    if (!carroValido(atual)) return;
+    if (!carroValido(atual)) { referenciaDelta.reiniciar(); return; }
     volta.posicao = atual[32];
     volta.numero = atual[33];
     volta.tempo = F1::ler32(atual + 4);
+    volta.anterior = F1::ler32(atual);
     volta.invalida = atual[37] != 0;
+    volta.delta = referenciaDelta.atualizar(
+        comprimentoPista, volta.numero, lerFloat(atual + 20), volta.tempo, volta.anterior,
+        !volta.invalida && atual[34] == 0 && (atual[44] == 1 || atual[44] == 4));
     const uint8_t *frente = nullptr;
     const uint8_t *atras = nullptr;
     for (uint8_t indice = 0; indice < 22; ++indice) {
       const uint8_t *outro = pacote + 29 + indice * 57;
       if (!carroValido(outro)) continue;
-      if (outro[32] + 1 == volta.posicao) frente = outro;
-      if (outro[32] == volta.posicao + 1) atras = outro;
+      if (outro[32] + 1 == volta.posicao) { frente = outro; volta.indiceFrente = indice; }
+      if (outro[32] == volta.posicao + 1) { atras = outro; volta.indiceAtras = indice; }
     }
     volta.frente = lerIntervalo(atual, frente, atual);
     volta.atras = lerIntervalo(atual, atras, atras);

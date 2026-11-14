@@ -3,6 +3,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 #include "configuracao_tela.h"
+#include "indicadores_painel.h"
 
 namespace Configuracao {
 constexpr uint8_t COMANDO_IDENTIFICACAO = 0xD3;
@@ -112,13 +113,17 @@ void executarTestesVisuais() {
 }
 
 void setup() {
+  for (uint8_t pino : Indicadores::PINOS) {
+    digitalWrite(pino, LOW);
+    pinMode(pino, OUTPUT);
+  }
   // O pino LED da TFT exige resistor de 220 ou 300 ohms neste ensaio.
   pinMode(Configuracao::PINO_BACKLIGHT, OUTPUT);
   digitalWrite(Configuracao::PINO_BACKLIGHT, HIGH);
   Serial.begin(115200);
   delay(1200);
   Serial.println("\n=== DIAGNOSTICO TFT - ESP32 ===");
-  Serial.println("CS=21 DC=22 RESET=4 MOSI=23 MISO=19 SCK=18");
+  Serial.println("CS=GND DC=22 RESET=3V3 MOSI=23 MISO=35 SCK=18");
   Serial.println("LED=32 com resistor de 220 ou 300 ohms em serie; sem PWM.");
   Serial.println("Driver ILI9341 em teste; confirmacao depende do resultado.");
 

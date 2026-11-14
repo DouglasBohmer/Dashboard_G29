@@ -106,8 +106,11 @@ A porta configurada é COM3. O firmware mostra o IP obtido por DHCP na TFT e
 no monitor serial. Anote o IP exibido após conectar. Ele pode mudar ao trocar
 de local ou reconectar; nesse caso, atualize o destino no jogo.
 
-Sem redes cadastradas, a TFT informa `CONFIGURE O WI-FI`. Isso é esperado
-até preencher o arquivo local e gravar novamente.
+Sem redes cadastradas, o rodapé orienta preencher `configuracao_wifi.local.h`.
+Depois de 10 segundos sem pacotes válidos do jogo, a demonstração automática
+exercita aceleração, frenagem, bandeiras, DRS e a página de pneus/freios.
+Ela também funciona com Wi-Fi conectado e jogo sem enviar UDP; termina no
+primeiro pacote real aceito. Veja o ciclo em [Dashboard_Firmware.md](Dashboard_Firmware.md#demonstração-automática-sem-jogo).
 
 Para voltar ao teste anterior, selecione **diagnostico_tft** e faça Upload:
 
