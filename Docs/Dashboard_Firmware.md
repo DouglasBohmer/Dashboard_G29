@@ -326,7 +326,25 @@ pio run -e telemetria_f1 -t upload
 pio device monitor -p COM3 -b 115200
 ```
 
-`i` mostra os dados e contagens de cada pacote; `r` reconecta às redes.
+O monitor inicia com os relatórios contínuos desativados. `i` mostra os dados
+e contagens de cada pacote uma única vez; `r` reconecta às redes. `v` alterna
+os relatórios automáticos a cada dois segundos e os avisos de etapas da demo.
+`t` desativa os relatórios contínuos, reenvia a inicialização do LCD e redesenha a página atual, sem reiniciar
+o ESP32 nem limpar a sessão/demonstração. A tentativa usa 1 MHz para comandos
+e desenho até reiniciar, e informa ID, modo de alimentação e formato de pixel
+antes/depois. `d` somente consulta esses registradores a 1 MHz, preservando a
+frequência de desenho. As leituras podem ser inconclusivas.
+Ao ligar, o firmware espera 500 ms adicionais, inicializa a 1 MHz e depois
+desenha a 10 MHz. Veja [Tela branca ao ligar](Teste_TFT.md)
+para testar sem abrir a caixa; a recuperação física ainda precisa ser validada.
+As respostas do teste usam o prefixo `[TFT]`. As mensagens de conexão e falhas
+continuam disponíveis; a demonstração e o jogo continuam funcionando ao
+desativar os relatórios.
+`b` executa a bateria de diagnóstico completa (velocidades, leitura direta,
+inicialização, padrões RGB, comparação de carga e SPI por software). Durante
+essa bateria, o processamento normal e o MQTT pausam; `x` cancela. O relatório
+usa `[TFT-B]` e o estado dos periféricos é restaurado ao terminar. Veja os
+detalhes e a captura automática em [Teste TFT](Teste_TFT.md).
 Mantenha UDP 2025, porta 20777 e envio a 60 Hz no F1. O endereço destino deve
 ser o IP atual informado no Monitor Serial. Credenciais locais continuam fora do Git.
 

@@ -37,8 +37,10 @@ montagem, com LDR avulso.
 Os percentuais representam o comando PWM, nao uma medicao de luz ou uma
 garantia de brilho visual proporcional. A faixa inferior da TFT agora exibe
 somente o modo ERS; os percentuais continuam no Monitor Serial e no Adafruit IO.
-Durante a transicao, o percentual acompanha o PWM aplicado. No monitor serial, o relatorio a cada dois segundos
-mostra DO, ambiente, brilho e disponibilidade do PWM; `i` repete o relatorio.
+Durante a transicao, o percentual acompanha o PWM aplicado. No monitor serial,
+`i` mostra DO, ambiente, brilho e disponibilidade do PWM uma vez. `v` ativa ou
+desativa o relatorio a cada dois segundos; ele inicia desativado para facilitar
+a leitura das respostas dos comandos.
 Mudancas confirmadas de claro/escuro tambem geram um registro imediato
 `LDR confirmado`, com o estado e o percentual alvo.
 

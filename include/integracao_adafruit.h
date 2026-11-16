@@ -14,6 +14,7 @@ class Integracao {
   void iniciar();
   void registrarAmostra(bool valida, bool escuro, uint8_t brilho, uint32_t agora);
   void relatar() const;
+  void pausarParaDiagnostico(bool pausar) { diagnosticoPausado.store(pausar); }
 
  private:
   enum class Estado : uint32_t {
@@ -31,6 +32,7 @@ class Integracao {
   std::atomic<Estado> estado{Estado::SemConfiguracao};
   std::atomic<uint32_t> pontosEnviados{0}, falhas{0};
   std::atomic<int32_t> codigoMqtt{-1};
+  std::atomic<bool> diagnosticoPausado{false};
   char topicoLdr[128]{}, topicoBrilho[128]{};
   char topicoErros[128]{}, topicoLimite[128]{};
   char identificador[40]{};

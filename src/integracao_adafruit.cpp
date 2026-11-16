@@ -96,6 +96,7 @@ void Integracao::executar() {
   bool horarioSolicitado = false;
   for (;;) {
     vTaskDelay(pdMS_TO_TICKS(20));
+    if (diagnosticoPausado.load()) continue;
     if (WiFi.status() != WL_CONNECTED) {
       transporte.stop();
       mudarEstado(Estado::AguardandoWiFi);

@@ -87,6 +87,100 @@ o `setup()`. Não espere iluminação a partir desse pino com o programa antigo.
 
 ## Resultado esperado
 
+### Tela branca ao ligar no dashboard
+
+O ambiente `telemetria_f1` aguarda mais 500 ms antes de `tela.begin()`, para
+dar tempo ao LCD de estabilizar antes do reset por comando. A constante
+`ESPERA_INICIAL_TFT_MS` fica em `include/configuracao_tela.h`. O diagnóstico
+separado já possui uma espera inicial de 1200 ms.
+No dashboard, a sequência de inicialização é enviada a 1 MHz
+(`FREQUENCIA_SPI_INICIALIZACAO`); depois o desenho volta à frequência normal
+de 10 MHz (`FREQUENCIA_SPI`).
+
+Se o dashboard ainda iniciar com a tela branca, abra o Monitor Serial em
+115200 baud e envie `t` (ou `T`). Os relatórios repetitivos ficam desativados
+por padrão; `t` também os desativa se tinham sido habilitados. Espere:
+
+```text
+[TFT] Teste lento a 1 MHz. Relatorios continuos desativados.
+[TFT] ANTES | ID=xx xx xx xx | modo=xx | pixel=xx
+[TFT] DEPOIS | ID=xx xx xx xx | modo=xx | pixel=xx
+[TFT] Inicializacao reenviada. Aguarde o redesenho e confira a imagem.
+```
+
+O exemplo destaca as linhas principais; `xx` representa o hexadecimal lido.
+O comando lê ID (0xD3), modo de alimentação (0x0A) e formato de pixel (0x0C),
+antes e depois da inicialização. A leitura por MISO pode ser inconclusiva:
+zeros ou FF não comprovam defeito nem identificam sozinhos a ligação envolvida.
+O ID compatível também não comprova que há imagem no vidro.
+
+Esse comando reenvia a inicialização do LCD a 1 MHz e mantém também o desenho
+nessa velocidade até reiniciar o ESP32. A atualização fica mais lenta durante
+esse teste; ao reiniciar, o desenho retorna à frequência normal configurada.
+Redesenha a página selecionada. Não reinicia o ESP32 nem limpa a telemetria,
+a demonstração ou a seleção de página; há uma pausa breve no processamento
+enquanto a biblioteca inicializa a tela. Wi-Fi e configuração de brilho são
+preservados.
+
+`d` lê os mesmos registradores sem reinicializar o LCD e depois restaura a
+velocidade de desenho que estava em uso. `i` consulta os dados uma vez.
+`v` ativa ou desativa o acompanhamento contínuo,
+incluindo os relatórios a cada dois segundos e as mudanças de etapa da demo.
+
+Depois do Upload, teste algumas partidas retirando e recolocando o USB,
+aguardando alguns segundos entre elas, sem mexer na montagem. Registre se
+a tela aparece na primeira tentativa e se `t` recupera uma eventual falha.
+Esses testes investigam a inicialização com a caixa fechada. A melhora não
+comprova sozinha a causa elétrica; revisar as ligações fica para depois.
+
+Na montagem atual, CS está fixo em GND e RESET em 3V3. O firmware não consegue
+aplicar pulsos físicos nesses pinos; sua recuperação depende de o controlador
+aceitar os comandos SPI. Reenviar comandos não garante recuperar todos os
+estados possíveis do LCD. Os registros acima permitem comparar uma partida
+com imagem e uma com tela branca antes de decidir outra intervenção.
+
+### Bateria automática com a caixa fechada
+
+No ambiente `telemetria_f1`, envie **`b`** para executar a bateria completa
+de uma vez. As mensagens usam `[TFT-B]`; `x` cancela e restaura o painel.
+Há uma leitura de base e etapas numeradas até 17:
+
+- MISO GPIO35 amostrado como entrada, sem habilitar pull-up interno.
+- Três leituras por etapa a 100 kHz, 500 kHz, 1 MHz e 4 MHz.
+- Leitura pela biblioteca e leitura SPI direta com bytes dummy explícitos.
+- Inicialização a 100 kHz e comandos explícitos Sleep Out, Normal On,
+  RGB565 e Display On, respeitando a espera de Sleep Out.
+- Padrões com letras e três quadrados RGB por hardware a 1/4 MHz.
+- Escrita/leitura de MADCTL e de pixels RGB na RAM, somente se o ID 9341
+  estiver confirmado. Sem confirmação, essas verificações são inconclusivas
+  e puladas, em vez de gerar aprovação falsa por ler zeros.
+- Comparação com rádio Wi-Fi e LEDs de sinalização desligados; uma segunda
+  comparação apaga o backlight por 700 ms e restaura seu brilho.
+- SPI por software com os mesmos pinos e outro padrão visual, seguido da
+  reconstrução do periférico SPI por hardware.
+
+O teste pausa o processamento normal do painel, sensores e envio MQTT para
+evitar sobreposição com os testes. No final/cancelamento, restaura o rádio,
+os LEDs e o backlight, retoma MQTT e redesenha a página selecionada a 1 MHz.
+Wi-Fi volta a ser conectado pela lógica normal; os dados podem vencer durante
+a pausa. O teste não aplica reset físico nem corta o VCC do LCD.
+
+O resumo conta amostras, IDs compatíveis, leituras zeradas e leituras FF.
+Mesmo três leituras iguais em 00 continuam **inconclusivas**. Retorno de
+registradores não comprova imagem; mudar cargas não mede a tensão de 3V3.
+Relate se alguma letra ou cor apareceu em qualquer etapa.
+
+Para executar e salvar pelo computador, com o Monitor Serial fechado:
+
+```powershell
+& "$env:USERPROFILE/.platformio/penv/Scripts/python.exe" scripts/executar_bateria_tft.py --porta COM3
+```
+
+O script mantém DTR/RTS desativados, envia `b`, salva o relatório em
+`.pio/testes/diagnostico_tft_lote.log` e envia `x` se o limite de tempo expirar.
+
+### Diagnóstico de cores e orientação
+
 1. Tela inteira vermelha, verde, azul, branca e preta, por 1,5 segundo cada.
 2. Quatro orientações com borda, diagonais e indicação do topo e da base.
 3. Painel de diagnóstico com resolução, bytes de identificação e contador.

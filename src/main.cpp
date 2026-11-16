@@ -13,6 +13,7 @@
 #include "indicadores_painel.h"
 #include "rede_painel.h"
 #include "demonstracao_dashboard.h"
+#include "diagnostico_tft_lote.h"
 
 #if __has_include("configuracao_wifi.local.h")
 #include "configuracao_wifi.local.h"
@@ -63,11 +64,20 @@ const char *nomeRedeEmTeste = "";
 IPAddress ipAtivo, origemTelemetria;
 uint32_t inicioTentativa = 0, ultimaTentativaUdp = 0, ultimaTela = 0;
 uint32_t ultimoRelatorio = 0, ultimoErro = 0, maiorTempoDesenhoUs = 0;
+// Relatorios extensos somente sob demanda; v habilita o acompanhamento continuo.
+bool relatoriosAutomaticos = false;
+uint32_t frequenciaSpiTela = Configuracao::FREQUENCIA_SPI;
 uint32_t pacotesRecebidos = 0, pacotesAtualizados = 0;
 uint32_t pacotesDescartados = 0, pacotesForaDeOrdem = 0;
 uint32_t pacotesPorTipo[16]{};
 uint16_t formatoRecebido = 0;
 DashboardF1::Resultado erroProtocolo = DashboardF1::Resultado::Ignorado;
+std::atomic<bool> diagnosticoEmLote{false};
+wifi_mode_t modoWifiAntesDiagnostico = WIFI_MODE_NULL;
+uint8_t brilhoAntesDiagnostico = ConfiguracaoLuminosidade::BRILHO_CLARO;
+void reduzirCargaDiagnostico(bool reduzir);
+void controlarLuzDiagnostico(bool ligada);
+DiagnosticoTFT::Lote bateriaTft(tela, reduzirCargaDiagnostico, controlarLuzDiagnostico);
 
 void iniciarIndicadores() {
   for (uint8_t pino : Indicadores::PINOS) {
@@ -163,6 +173,7 @@ void atualizarLuminosidade(uint32_t agora) {
 }
 
 void registrarEventoWiFi(WiFiEvent_t evento, WiFiEventInfo_t informacao) {
+  if (diagnosticoEmLote.load()) return;
   if (evento != ARDUINO_EVENT_WIFI_STA_DISCONNECTED) return;
   const uint8_t motivo = informacao.wifi_sta_disconnected.reason;
   const char *descricao = "consulte o codigo de desconexao";
@@ -280,7 +291,8 @@ void receberTelemetria(uint32_t agora) {
     if (demonstracao.registrarTelemetriaReal(agora)) {
       selecaoTela = selecaoAntesDemonstracao;
       redesenharPagina = true;
-      Serial.println("DEMO encerrada: telemetria real recebida. Retomando a pagina anterior.");
+      if (relatoriosAutomaticos)
+        Serial.println("DEMO encerrada: telemetria real recebida. Retomando a pagina anterior.");
     }
     if (dados.consumirAcaoUdp1()) {
       selecaoTela.proxima();
@@ -296,13 +308,16 @@ void atualizarDemonstracao(uint32_t agora) {
     selecaoTela = PerfisDashboard::Selecao{};
     ultimaEtapaDemo = demonstracao.etapa();
     redesenharPagina = true;
-    Serial.println("DEMO: 10 s sem telemetria valida. Wi-Fi e UDP continuam ativos em segundo plano.");
-    Serial.printf("DEMO: %s.\n", DemonstracaoDashboard::nomeEtapa(ultimaEtapaDemo));
+    if (relatoriosAutomaticos) {
+      Serial.println("DEMO: 10 s sem telemetria valida. Wi-Fi e UDP continuam ativos em segundo plano.");
+      Serial.printf("DEMO: %s.\n", DemonstracaoDashboard::nomeEtapa(ultimaEtapaDemo));
+    }
   }
   if (!demonstracao.ativa()) return;
   if (demonstracao.etapa() != ultimaEtapaDemo) {
     ultimaEtapaDemo = demonstracao.etapa();
-    Serial.printf("DEMO: %s.\n", DemonstracaoDashboard::nomeEtapa(ultimaEtapaDemo));
+    if (relatoriosAutomaticos)
+      Serial.printf("DEMO: %s.\n", DemonstracaoDashboard::nomeEtapa(ultimaEtapaDemo));
   }
   if (selecaoTela.atual().pagina != demonstracao.pagina()) {
     selecaoTela.proxima();
@@ -416,6 +431,51 @@ void relatarDados(uint32_t agora) {
   }
 }
 
+void relatarControladorTela(const char *etapa) {
+  uint8_t id[4]{};
+  for (uint8_t indice = 0; indice < 4; ++indice)
+    id[indice] = tela.readcommand8(0xD3, indice);
+  const uint8_t modo = tela.readcommand8(ILI9341_RDMODE);
+  const uint8_t formato = tela.readcommand8(ILI9341_RDPIXFMT);
+  Serial.printf("[TFT] %s | ID=%02X %02X %02X %02X | modo=%02X | pixel=%02X\n",
+                etapa, id[0], id[1], id[2], id[3], modo, formato);
+  bool idCompativel = false;
+  for (uint8_t indice = 0; indice < 3; ++indice)
+    idCompativel |= id[indice] == 0x93 && id[indice + 1] == 0x41;
+  Serial.println(idCompativel ? "[TFT] ID compativel com ILI9341; a imagem precisa ser conferida."
+                            : "[TFT] Leitura inconclusiva; isto sozinho nao comprova defeito no LCD.");
+}
+
+void reduzirCargaDiagnostico(bool reduzir) {
+  if (reduzir) {
+    modoWifiAntesDiagnostico = WiFi.getMode();
+    WiFi.disconnect(false, false);
+    const bool desligou = WiFi.mode(WIFI_OFF);
+    for (uint8_t pino : Indicadores::PINOS) digitalWrite(pino, LOW);
+    Serial.printf("[TFT-B] Reducao de carga: radio desligado=%s; canais dos LEDs em LOW.\n", desligou ? "SIM" : "NAO");
+  } else {
+    const bool restaurou = WiFi.mode(modoWifiAntesDiagnostico);
+    WiFi.setSleep(false); WiFi.setAutoReconnect(false);
+    receptor.stop(); udpAtivo = false; redePainel.reiniciar(); tentandoWiFi = false;
+    for (size_t i = 0; i < Indicadores::PINOS.size(); ++i)
+      digitalWrite(Indicadores::PINOS[i], estadoIndicadores[i] ? HIGH : LOW);
+    Serial.printf("[TFT-B] Configuracao de radio restaurada=%s; reconexao sera retomada no loop.\n", restaurou ? "SIM" : "NAO");
+  }
+}
+
+void controlarLuzDiagnostico(bool ligada) {
+  if (pwmDisponivel) ledcWrite(ConfiguracaoLuminosidade::CANAL_PWM, ligada ? brilhoAntesDiagnostico : 0);
+  else digitalWrite(Configuracao::PINO_BACKLIGHT, ligada ? HIGH : LOW);
+}
+
+void finalizarBateriaTft() {
+  frequenciaSpiTela = 1000000;
+  redesenharPagina = true;
+  ultimaTela = millis() - Configuracao::INTERVALO_TELA;
+  nuvem.pausarParaDiagnostico(false);
+  diagnosticoEmLote.store(false);
+}
+
 void setup() {
   iniciarIndicadores();
   Serial.begin(115200);
@@ -426,8 +486,13 @@ void setup() {
   if (!camposTela.memoriaDisponivel()) Serial.println("Falha ao reservar buffer de desenho da TFT.");
   SPI.begin(Configuracao::PINO_SCK, Configuracao::PINO_MISO,
             Configuracao::PINO_MOSI, Configuracao::PINO_CS);
-  tela.begin(Configuracao::FREQUENCIA_SPI);
+  Serial.printf("TFT: aguardando %lu ms antes de inicializar.\n",
+                static_cast<unsigned long>(Configuracao::ESPERA_INICIAL_TFT_MS));
+  delay(Configuracao::ESPERA_INICIAL_TFT_MS);
+  tela.begin(Configuracao::FREQUENCIA_SPI_INICIALIZACAO);
+  tela.setSPISpeed(frequenciaSpiTela);
   painel.iniciar();
+  Serial.println("TFT: inicializacao enviada a 1 MHz; desenho normal a 10 MHz.");
   for (const auto &rede : ConfiguracaoWiFi::REDES) haRedesConfiguradas |= rede.nome[0] != '\0';
   WiFi.persistent(false);
   WiFi.onEvent(registrarEventoWiFi);
@@ -437,7 +502,9 @@ void setup() {
   WiFi.setSleep(false);
   Serial.printf("\n=== %s ===\n", selecaoTela.atual().nome);
   Serial.println("Acao UDP 1: alternar Principal / Pneus e freios. Um toque, uma troca.");
-  Serial.println("UDP 20777, formato 2025. Comandos: i = informacoes; r = reconectar.");
+  Serial.println("UDP 20777, formato 2025. Comandos: i = informacoes; r = reconectar; t = testar TFT a 1 MHz; d = ler LCD; v = relatorios continuos.");
+  Serial.println("Monitor: relatorios continuos desativados. Digite t para testar a tela ou i para consultar os dados.");
+  Serial.println("Bateria TFT: b = executar todos os testes; x = cancelar durante a bateria.");
   Serial.println("Rede: preferencia 192.168.8.80, alternativas .81 a .84, com verificacao ARP.");
   Serial.println("Em outra sub-rede, manter terminacoes .80 a .84 e usar o IP deste Monitor Serial.");
   Serial.println("ERS: perfil F1 2025, bateria 4 MJ e saldo estimado por volta 4 MJ.");
@@ -463,6 +530,16 @@ void setup() {
 }
 
 void loop() {
+  if (bateriaTft.ativa()) {
+    while (Serial.available() > 0) {
+      const char comando = static_cast<char>(Serial.read());
+      if (comando == 'x' || comando == 'X') {
+        bateriaTft.cancelar(); finalizarBateriaTft(); delay(2); return;
+      }
+    }
+    if (bateriaTft.atualizar()) finalizarBateriaTft();
+    delay(2); return;
+  }
   const uint32_t agora = millis();
   atualizarLuminosidade(agora);
   nuvem.registrarAmostra(sensorLuz.valido(), sensorLuz.escuro(), brilhoAtual, agora);
@@ -475,13 +552,41 @@ void loop() {
   while (Serial.available() > 0) {
     const char comando = static_cast<char>(Serial.read());
     if (comando == 'i' || comando == 'I') relatarDados(agora);
-    else if (comando == 'r' || comando == 'R') {
+    else if (comando == 't' || comando == 'T') {
+      relatoriosAutomaticos = false;
+      Serial.println("\n[TFT] Teste lento a 1 MHz. Relatorios continuos desativados.");
+      frequenciaSpiTela = Configuracao::FREQUENCIA_SPI_INICIALIZACAO;
+      tela.setSPISpeed(frequenciaSpiTela);
+      relatarControladorTela("ANTES");
+      tela.begin(frequenciaSpiTela);
+      relatarControladorTela("DEPOIS");
+      redesenharPagina = true;
+      Serial.println("[TFT] Inicializacao reenviada. Aguarde o redesenho e confira a imagem.");
+      Serial.println("[TFT] Desenho mantido a 1 MHz ate reiniciar; o teste pode deixar a tela mais lenta.");
+    } else if (comando == 'd' || comando == 'D') {
+      relatoriosAutomaticos = false;
+      tela.setSPISpeed(Configuracao::FREQUENCIA_SPI_INICIALIZACAO);
+      relatarControladorTela("CONSULTA");
+      tela.setSPISpeed(frequenciaSpiTela);
+    } else if (comando == 'b' || comando == 'B') {
+      relatoriosAutomaticos = false;
+      brilhoAntesDiagnostico = brilhoAtual;
+      diagnosticoEmLote.store(true);
+      nuvem.pausarParaDiagnostico(true);
+      bateriaTft.iniciar();
+      break;
+    } else if (comando == 'v' || comando == 'V') {
+      relatoriosAutomaticos = !relatoriosAutomaticos;
+      ultimoRelatorio = agora;
+      Serial.printf("\n[MONITOR] Relatorios continuos %s. i = consultar uma vez; t = testar a tela.\n",
+                    relatoriosAutomaticos ? "ativados" : "desativados");
+    } else if (comando == 'r' || comando == 'R') {
       encerrarRecepcao();
       WiFi.disconnect();
       tentandoWiFi = false;
     }
   }
-  if (agora - ultimoRelatorio >= 2000) {
+  if (relatoriosAutomaticos && agora - ultimoRelatorio >= 2000) {
     ultimoRelatorio = agora;
     relatarDados(agora);
   }
