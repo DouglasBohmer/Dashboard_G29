@@ -13,4 +13,4 @@ $arquivoObjeto = Join-Path $diretorioSaida 'teste_controle_adafruit.o'
 if ($LASTEXITCODE -ne 0) {
     throw 'Falha nas verificacoes do envio ao Adafruit IO.'
 }
-Write-Output '15 verificacoes do controle Adafruit IO aprovadas. Nenhuma gravacao no ESP32.'
+Write-Output '21 verificacoes do controle Adafruit IO aprovadas. Nenhuma gravacao no ESP32.'

@@ -542,7 +542,8 @@ void loop() {
   }
   const uint32_t agora = millis();
   atualizarLuminosidade(agora);
-  nuvem.registrarAmostra(sensorLuz.valido(), sensorLuz.escuro(), brilhoAtual, agora);
+  nuvem.registrarAmostra(sensorLuz.valido(), sensorLuz.escuro(), brilhoAtual,
+                         ambienteValido, ambiente.humidity, agora);
   atualizarConexao(agora);
   receberTelemetria(agora);
   atualizarDemonstracao(agora);

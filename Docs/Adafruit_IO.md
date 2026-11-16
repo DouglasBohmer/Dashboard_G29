@@ -1,7 +1,7 @@
 # Integração com Adafruit IO
 
-O ambiente `telemetria_f1` publica o estado do sensor instalado e o comando
-de brilho da TFT no Adafruit IO, usando PubSubClient 2.8. As redes de casa e
+O ambiente `telemetria_f1` publica o estado do sensor instalado, o comando
+de brilho da TFT e a umidade do DHT22 no Adafruit IO, usando PubSubClient 2.8. As redes de casa e
 faculdade continuam em `include/configuracao_wifi.local.h`.
 
 ## Configuração
@@ -9,13 +9,16 @@ faculdade continuam em `include/configuracao_wifi.local.h`.
 As credenciais fornecidas foram salvas em
 `include/configuracao_adafruit.local.h`, ignorado pelo Git. Em outra máquina,
 copie `include/configuracao_adafruit.exemplo.h` para esse nome e preencha
-`USUARIO` e `CHAVE`. Os dois nomes de feed também ficam nesse arquivo.
+`USUARIO` e `CHAVE`. Os três nomes de feed também ficam nesse arquivo.
+Arquivos locais antigos, sem `FEED_UMIDADE`, continuam compilando: nesse
+caso o firmware usa o feed padrão `umidade`.
 Recompile e faça Upload após alterar a configuração.
 
 | Feed | Valor enviado | Escala sugerida do gráfico |
 | --- | --- | --- |
 | `ldr-valor` | Estado confirmado: 0 = claro; 1 = escuro | 0 a 1 |
 | `brilho-tft` | Ciclo PWM aplicado, em percentual | 0 a 100 |
+| `umidade` | Umidade relativa do DHT22 (GPIO33), em %, uma casa decimal | 0 a 100 |
 
 O sensor possui saída DO; `ldr-valor` não representa uma medição analógica,
 lux ou percentual de iluminação. O brilho permanece em aproximadamente 50%
@@ -29,7 +32,11 @@ o certificado DigiCert Global Root G2 incluído no projeto. O ESP32 sincroniza
 o relógio por NTP antes da conexão para verificar a validade do certificado.
 Não é usado `setInsecure`.
 
-São enviados dois pontos a cada dez segundos: aproximadamente 12 por minuto.
+São enviados três pontos a cada dez segundos: aproximadamente 18 por minuto.
+A umidade só é publicada quando a última leitura do DHT22 é válida (0 a 100%);
+sem leitura válida, LDR e brilho seguem sendo enviados e a umidade fica de fora
+sem contar como falha. Como antes, nada é enviado enquanto o LDR não tiver a
+primeira leitura confirmada.
 O limite gratuito é 30 pontos por minuto, compartilhado por todos os clientes
 da conta. O intervalo é preservado entre reconexões, inclusive após falha
 parcial de envio; dados antigos não são reenviados em rajada.
@@ -53,7 +60,7 @@ para validar a gravação dos dados.
 1. Grave `telemetria_f1` e abra o monitor serial em 115200 baud.
 2. Aguarde `Adafruit IO: conectado`.
 3. Ilumine e cubra o sensor, mantendo cada condição por pelo menos dez segundos.
-4. Confira os dois feeds e o gráfico no Adafruit IO.
+4. Confira os três feeds e o dashboard `N3 - IOT` no Adafruit IO.
 5. Envie `i` no serial para consultar estado, pontos enviados, falhas e código MQTT.
 
 Se permanecer aguardando horário NTP, confira o acesso à internet e a
@@ -67,6 +74,14 @@ foi aceita pelo broker em uma conexão de verificação feita pelo computador.
 Nenhum dado de teste foi publicado. O firmware compilou; as 15 verificações
 do controle de envio, as 22 do sensor e as 26 do parser passaram. O Upload e
 o ensaio de publicação pelo ESP32 continuam pendentes.
+
+## Umidade (16/11/2026)
+
+Feed `umidade` criado na conta e ligado ao dashboard `N3 - IOT` (medidor
+0–100% com alertas em 30% e 70% e gráfico de histórico). O monitor serial
+passa a mostrar `umidade=58.4%` na linha de envio (ou `umidade=-%` sem
+leitura válida). As verificações de `scripts/testar_adafruit.ps1` passaram
+de 15 para 21.
 
 ## Referências
 

@@ -12,7 +12,8 @@ namespace AdafruitIO {
 class Integracao {
  public:
   void iniciar();
-  void registrarAmostra(bool valida, bool escuro, uint8_t brilho, uint32_t agora);
+  void registrarAmostra(bool valida, bool escuro, uint8_t brilho,
+                        bool umidadeValida, float umidade, uint32_t agora);
   void relatar() const;
   void pausarParaDiagnostico(bool pausar) { diagnosticoPausado.store(pausar); }
 
@@ -23,6 +24,8 @@ class Integracao {
   struct Amostra {
     bool valida, escuro;
     uint8_t brilho;
+    bool umidadeValida;
+    float umidade;
     uint32_t instante;
   };
 
@@ -33,7 +36,7 @@ class Integracao {
   std::atomic<uint32_t> pontosEnviados{0}, falhas{0};
   std::atomic<int32_t> codigoMqtt{-1};
   std::atomic<bool> diagnosticoPausado{false};
-  char topicoLdr[128]{}, topicoBrilho[128]{};
+  char topicoLdr[128]{}, topicoBrilho[128]{}, topicoUmidade[128]{};
   char topicoErros[128]{}, topicoLimite[128]{};
   char identificador[40]{};
   bool pausadoPorLimite = false;
