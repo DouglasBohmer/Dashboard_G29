@@ -107,8 +107,10 @@ gradual do PWM no GPIO32: 100% no claro e aproximadamente 10% no escuro.
 Veja [Sensor de luminosidade](Docs/Sensor_Luminosidade.md) para montagem,
 ajuste do limite e validação. `scripts/testar_luminosidade.ps1` verifica a
 lógica sem gravar o ESP32. A integração com [Adafruit IO](Docs/Adafruit_IO.md)
-envia claro/escuro e brilho a cada dez segundos por MQTT/TLS, em uma tarefa
-separada. As credenciais ficam em `include/configuracao_adafruit.local.h`,
+envia claro/escuro, brilho e a umidade do DHT22 (feeds `ldr-valor`,
+`brilho-tft` e `umidade`) a cada dez segundos por MQTT/TLS, em uma tarefa
+separada; os dados aparecem no dashboard `N3 - IOT`. A umidade só é enviada
+quando a leitura do DHT22 é válida. As credenciais ficam em `include/configuracao_adafruit.local.h`,
 ignorado pelo Git; há um exemplo público e verificações em
 `scripts/testar_adafruit.ps1`. O backend Spring Boot, os LEDs de RPM e o
 indicador de marchas ainda não foram integrados. A marcha aparece centralizada na TFT.

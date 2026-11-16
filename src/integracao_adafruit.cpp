@@ -11,6 +11,15 @@
 #include "configuracao_adafruit.exemplo.h"
 #endif
 
+// Arquivos locais anteriores ao feed de umidade nao declaram FEED_UMIDADE.
+// A busca qualificada usa o valor local quando existir e, se faltar, este padrao.
+namespace AdafruitIOPadrao {
+constexpr char FEED_UMIDADE[] = "umidade";
+}
+namespace ConfiguracaoAdafruit {
+using namespace AdafruitIOPadrao;
+}
+
 namespace AdafruitIO {
 const char *Integracao::nomeEstado(Estado valor) {
   switch (valor) {
@@ -30,7 +39,8 @@ void Integracao::mudarEstado(Estado valor) {
 void Integracao::iniciar() {
   if (fila) return;
   if (!ConfiguracaoAdafruit::USUARIO[0] || !ConfiguracaoAdafruit::CHAVE[0] ||
-      !ConfiguracaoAdafruit::FEED_LDR[0] || !ConfiguracaoAdafruit::FEED_BRILHO[0]) {
+      !ConfiguracaoAdafruit::FEED_LDR[0] || !ConfiguracaoAdafruit::FEED_BRILHO[0] ||
+      !ConfiguracaoAdafruit::FEED_UMIDADE[0]) {
     Serial.println("Adafruit IO: preencha configuracao_adafruit.local.h para habilitar.");
     return;
   }
@@ -38,10 +48,13 @@ void Integracao::iniciar() {
                                   ConfiguracaoAdafruit::USUARIO, ConfiguracaoAdafruit::FEED_LDR);
   const int tamanhoBrilho = snprintf(topicoBrilho, sizeof(topicoBrilho), "%s/feeds/%s",
                                      ConfiguracaoAdafruit::USUARIO, ConfiguracaoAdafruit::FEED_BRILHO);
+  const int tamanhoUmidade = snprintf(topicoUmidade, sizeof(topicoUmidade), "%s/feeds/%s",
+                                      ConfiguracaoAdafruit::USUARIO, ConfiguracaoAdafruit::FEED_UMIDADE);
   const int tamanhoErros = snprintf(topicoErros, sizeof(topicoErros), "%s/errors", ConfiguracaoAdafruit::USUARIO);
   const int tamanhoLimite = snprintf(topicoLimite, sizeof(topicoLimite), "%s/throttle", ConfiguracaoAdafruit::USUARIO);
   if (tamanhoLdr <= 0 || tamanhoLdr >= sizeof(topicoLdr) ||
       tamanhoBrilho <= 0 || tamanhoBrilho >= sizeof(topicoBrilho) ||
+      tamanhoUmidade <= 0 || tamanhoUmidade >= sizeof(topicoUmidade) ||
       tamanhoErros <= 0 || tamanhoErros >= sizeof(topicoErros) ||
       tamanhoLimite <= 0 || tamanhoLimite >= sizeof(topicoLimite) || !mqtt.setBufferSize(512)) {
     mudarEstado(Estado::Falha);
@@ -73,9 +86,10 @@ void Integracao::iniciar() {
   }
 }
 
-void Integracao::registrarAmostra(bool valida, bool escuro, uint8_t brilho, uint32_t agora) {
+void Integracao::registrarAmostra(bool valida, bool escuro, uint8_t brilho,
+                                  bool umidadeValida, float umidade, uint32_t agora) {
   if (!fila || !coleta.consumir(agora, 100)) return;
-  const Amostra amostra{valida, escuro, brilho, agora};
+  const Amostra amostra{valida, escuro, brilho, umidadeValida && umidadePublicavel(umidade), umidade, agora};
   xQueueOverwrite(fila, &amostra);
 }
 
@@ -148,14 +162,23 @@ void Integracao::executar() {
     // O feed LDR representa claro=0 e escuro=1, nao uma leitura analogica.
     const bool ldrEnviado = mqtt.publish(topicoLdr, amostra.escuro ? "1" : "0");
     const bool brilhoEnviado = mqtt.publish(topicoBrilho, brilho);
-    pontosEnviados.fetch_add(static_cast<uint32_t>(ldrEnviado) + static_cast<uint32_t>(brilhoEnviado));
-    if (!ldrEnviado || !brilhoEnviado) {
+    // Sem leitura valida do DHT22, a umidade fica de fora e nao conta como falha.
+    char umidade[8] = "-";
+    bool umidadeEnviada = true;
+    if (amostra.umidadeValida) {
+      snprintf(umidade, sizeof(umidade), "%.1f", static_cast<double>(amostra.umidade));
+      umidadeEnviada = mqtt.publish(topicoUmidade, umidade);
+    }
+    pontosEnviados.fetch_add(static_cast<uint32_t>(ldrEnviado) + static_cast<uint32_t>(brilhoEnviado) +
+                             static_cast<uint32_t>(amostra.umidadeValida && umidadeEnviada));
+    if (!ldrEnviado || !brilhoEnviado || !umidadeEnviada) {
       ++falhas;
       codigoMqtt.store(mqtt.state());
       transporte.stop();
       mudarEstado(Estado::Falha);
     } else {
-      Serial.printf("Adafruit IO: enviado claro/escuro=%u | brilho=%s%%.\n", amostra.escuro, brilho);
+      Serial.printf("Adafruit IO: enviado claro/escuro=%u | brilho=%s%% | umidade=%s%%.\n",
+                    amostra.escuro, brilho, umidade);
     }
   }
 }

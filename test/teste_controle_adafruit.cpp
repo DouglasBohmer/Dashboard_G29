@@ -15,7 +15,7 @@ constexpr unsigned contarPontosEmUmMinuto() {
   AdafruitIO::Temporizador temporizador;
   unsigned pontos = 0;
   for (uint32_t agora = 0; agora < 60000; agora += 100) {
-    if (temporizador.consumir(agora, AdafruitIO::INTERVALO_ENVIO_MS)) pontos += 2;
+    if (temporizador.consumir(agora, AdafruitIO::INTERVALO_ENVIO_MS)) pontos += AdafruitIO::PONTOS_POR_ENVIO;
   }
   return pontos;
 }
@@ -46,10 +46,10 @@ constexpr bool reconexaoLimitada() {
 
 static_assert(primeiraTentativaImediata(), "Primeira amostra pode ser enviada imediatamente");
 static_assert(!respeitarIntervalo(0), "Nao repetir envio no instante inicial");
-static_assert(!respeitarIntervalo(3000), "Dois feeds nao devem repetir a cada 3 segundos");
+static_assert(!respeitarIntervalo(3000), "Tres feeds nao devem repetir a cada 3 segundos");
 static_assert(!respeitarIntervalo(9999), "Aguardar intervalo completo");
 static_assert(respeitarIntervalo(10000), "Enviar ao completar 10 segundos");
-static_assert(contarPontosEmUmMinuto() == 12, "Dois feeds geram 12 pontos por minuto");
+static_assert(contarPontosEmUmMinuto() == 18, "Tres feeds geram 18 pontos por minuto");
 static_assert(contarPontosEmUmMinuto() <= 30, "Respeitar limite gratuito da conta");
 static_assert(intervaloAposReconexao(), "Reconectar nao reinicia intervalo nem cria rajada");
 static_assert(!contarNaVirada(9743), "Virada do millis preserva intervalo antes do prazo");
@@ -59,3 +59,9 @@ static_assert(AdafruitIO::percentualBrilho(0) == 0, "PWM zero representa zero po
 static_assert(AdafruitIO::percentualBrilho(26) == 10, "PWM 26 representa 10 por cento");
 static_assert(AdafruitIO::percentualBrilho(128) == 50, "Meio ciclo representa 50 por cento");
 static_assert(AdafruitIO::percentualBrilho(255) == 100, "Ciclo completo representa 100 por cento");
+static_assert(AdafruitIO::umidadePublicavel(0.0f), "Umidade zero e publicavel");
+static_assert(AdafruitIO::umidadePublicavel(58.4f), "Umidade tipica e publicavel");
+static_assert(AdafruitIO::umidadePublicavel(100.0f), "Umidade cem por cento e publicavel");
+static_assert(!AdafruitIO::umidadePublicavel(-0.1f), "Umidade negativa nao e publicada");
+static_assert(!AdafruitIO::umidadePublicavel(100.1f), "Umidade acima de cem nao e publicada");
+static_assert(!AdafruitIO::umidadePublicavel(__builtin_nanf("")), "Leitura NaN do DHT22 nao e publicada");
